@@ -1,0 +1,1032 @@
+"use client";
+
+import Link from "next/link";
+import {
+  useEffect,
+  useState,
+} from "react";
+import {
+  useParams,
+  useRouter,
+} from "next/navigation";
+
+import {
+  ArrowLeft,
+  CalendarClock,
+  ClipboardCheck,
+  MapPin,
+  Save,
+  UserRound,
+  Video,
+} from "lucide-react";
+
+import { createClient } from "@/utils/supabase/client";
+
+const supabase = createClient();
+
+type Profile = {
+  id: string;
+  full_name: string;
+};
+
+const productionStatuses = [
+  {
+    value: "PENDING_PLANNING",
+    label: "Pendiente de planificación",
+  },
+  {
+    value: "PENDING_DATE",
+    label: "Pendiente de fecha",
+  },
+  {
+    value: "SCHEDULED",
+    label: "Programada",
+  },
+  {
+    value: "READY",
+    label: "Lista para producir",
+  },
+  {
+    value: "COMPLETED",
+    label: "Completada",
+  },
+  {
+    value: "NOT_COMPLETED",
+    label: "No realizada",
+  },
+  {
+    value: "RESCHEDULED",
+    label: "Reprogramada",
+  },
+  {
+    value: "CANCELLED",
+    label: "Cancelada",
+  },
+];
+
+export default function EditProductionPage() {
+  const params = useParams();
+  const router = useRouter();
+
+  const productionId =
+    params.id as string;
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    loadingProfiles,
+    setLoadingProfiles,
+  ] = useState(true);
+
+  const [
+    profiles,
+    setProfiles,
+  ] = useState<Profile[]>([]);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const [
+    name,
+    setName,
+  ] = useState("");
+
+  const [
+    description,
+    setDescription,
+  ] = useState("");
+
+  const [
+    responsibleUserId,
+    setResponsibleUserId,
+  ] = useState("");
+
+  const [
+    status,
+    setStatus,
+  ] = useState(
+    "PENDING_PLANNING"
+  );
+
+  const [
+    startAt,
+    setStartAt,
+  ] = useState("");
+
+  const [
+    endAt,
+    setEndAt,
+  ] = useState("");
+
+  const [
+    location,
+    setLocation,
+  ] = useState("");
+
+  const [
+    preparationReviewAt,
+    setPreparationReviewAt,
+  ] = useState("");
+
+  const [
+    notes,
+    setNotes,
+  ] = useState("");
+
+  /*
+   * =====================================
+   * CARGAR DATOS
+   * =====================================
+   */
+
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      setLoadingProfiles(true);
+      setErrorMessage("");
+
+      const [
+        productionResult,
+        profilesResult,
+      ] =
+        await Promise.all([
+          supabase
+            .from("productions")
+            .select(`
+              id,
+              name,
+              description,
+              responsible_user_id,
+              status,
+              start_at,
+              end_at,
+              location,
+              preparation_review_at,
+              notes
+            `)
+            .eq(
+              "id",
+              productionId
+            )
+            .single(),
+
+          supabase
+            .from("profiles")
+            .select(`
+              id,
+              full_name
+            `)
+            .eq(
+              "status",
+              "ACTIVE"
+            )
+            .order(
+              "full_name",
+              {
+                ascending: true,
+              }
+            ),
+        ]);
+
+      if (
+        productionResult.error ||
+        !productionResult.data
+      ) {
+        console.error(
+          productionResult.error
+        );
+
+        setErrorMessage(
+          "No se pudo cargar la producción."
+        );
+
+        setLoading(false);
+        setLoadingProfiles(false);
+
+        return;
+      }
+
+      if (
+        profilesResult.error
+      ) {
+        console.error(
+          profilesResult.error
+        );
+
+        setErrorMessage(
+          "No se pudieron cargar los responsables."
+        );
+      }
+
+      const production =
+        productionResult.data;
+
+      setName(
+        production.name ?? ""
+      );
+
+      setDescription(
+        production.description ??
+          ""
+      );
+
+      setResponsibleUserId(
+        production.responsible_user_id ??
+          ""
+      );
+
+      setStatus(
+        production.status ??
+          "PENDING_PLANNING"
+      );
+
+      setStartAt(
+        toLocalDateTimeInput(
+          production.start_at
+        )
+      );
+
+      setEndAt(
+        toLocalDateTimeInput(
+          production.end_at
+        )
+      );
+
+      setLocation(
+        production.location ??
+          ""
+      );
+
+      setPreparationReviewAt(
+        toLocalDateTimeInput(
+          production.preparation_review_at
+        )
+      );
+
+      setNotes(
+        production.notes ?? ""
+      );
+
+      setProfiles(
+        (profilesResult.data ??
+          []) as Profile[]
+      );
+
+      setLoading(false);
+      setLoadingProfiles(false);
+    }
+
+    if (productionId) {
+      loadData();
+    }
+  }, [productionId]);
+
+  /*
+   * =====================================
+   * GUARDAR
+   * =====================================
+   */
+
+  async function handleSave() {
+    if (saving) return;
+
+    setErrorMessage("");
+
+    if (!name.trim()) {
+      setErrorMessage(
+        "Escribí un nombre para la producción."
+      );
+
+      return;
+    }
+
+    if (!responsibleUserId) {
+      setErrorMessage(
+        "Elegí un responsable."
+      );
+
+      return;
+    }
+
+    if (
+      [
+        "SCHEDULED",
+        "READY",
+        "COMPLETED",
+      ].includes(status) &&
+      !startAt
+    ) {
+      setErrorMessage(
+        "Este estado requiere una fecha y hora de inicio."
+      );
+
+      return;
+    }
+
+    if (
+      startAt &&
+      endAt &&
+      new Date(endAt) <
+        new Date(startAt)
+    ) {
+      setErrorMessage(
+        "La fecha de fin no puede ser anterior al inicio."
+      );
+
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const {
+        data,
+        error,
+      } = await supabase
+        .from("productions")
+        .update({
+          name:
+            name.trim(),
+
+          description:
+            description.trim() ||
+            null,
+
+          responsible_user_id:
+            responsibleUserId,
+
+          status,
+
+          start_at:
+            startAt
+              ? new Date(
+                  startAt
+                ).toISOString()
+              : null,
+
+          end_at:
+            endAt
+              ? new Date(
+                  endAt
+                ).toISOString()
+              : null,
+
+          location:
+            location.trim() ||
+            null,
+
+          preparation_review_at:
+            preparationReviewAt
+              ? new Date(
+                  preparationReviewAt
+                ).toISOString()
+              : null,
+
+          notes:
+            notes.trim() ||
+            null,
+
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq(
+          "id",
+          productionId
+        )
+        .select(`
+          id
+        `)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error(
+          "La producción no pudo actualizarse."
+        );
+      }
+
+      router.push(
+        `/producciones/${productionId}`
+      );
+
+      router.refresh();
+    } catch (error) {
+      console.error(
+        "Error updating production:",
+        error
+      );
+
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar la producción."
+      );
+
+      setSaving(false);
+    }
+  }
+
+  /*
+   * =====================================
+   * CARGANDO
+   * =====================================
+   */
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#050607] text-white">
+
+        <div className="mx-auto max-w-[1100px] px-5 py-8 md:px-8">
+
+          <div className="rounded-xl border border-white/10 bg-[#0B0F12] px-6 py-10 text-center text-sm text-zinc-600">
+            Cargando producción...
+          </div>
+
+        </div>
+
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-[#050607] text-white">
+
+      <div className="mx-auto max-w-[1100px] px-5 py-8 md:px-8">
+
+        {/* =====================================
+            CABECERA
+        ===================================== */}
+
+        <div className="mb-8">
+
+          <Link
+            href={`/producciones/${productionId}`}
+            className="mb-5 inline-flex items-center gap-2 text-sm text-zinc-500 transition hover:text-white"
+          >
+            <ArrowLeft
+              size={16}
+            />
+
+            Volver a la producción
+          </Link>
+
+          <div className="flex items-center gap-3">
+
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#20A4DD]/20 bg-[#20A4DD]/10 text-[#45B8E8]">
+              <Video
+                size={21}
+              />
+            </div>
+
+            <div>
+
+              <h1 className="text-2xl font-semibold tracking-tight">
+                Editar producción
+              </h1>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Modificá la planificación general de la producción.
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <div className="space-y-6">
+
+          {/* =====================================
+              GENERAL
+          ===================================== */}
+
+          <section className="rounded-xl border border-white/10 bg-[#0B0F12]">
+
+            <div className="border-b border-white/10 px-6 py-5">
+
+              <h2 className="text-sm font-semibold">
+                Información general
+              </h2>
+
+              <p className="mt-1 text-xs text-zinc-600">
+                Datos principales de la producción.
+              </p>
+
+            </div>
+
+            <div className="grid gap-5 p-6 md:grid-cols-2">
+
+              <Field
+                label="Nombre de la producción"
+                required
+              >
+
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) =>
+                    setName(
+                      e.target.value
+                    )
+                  }
+                  className={inputClass}
+                />
+
+              </Field>
+
+              <Field
+                label="Responsable"
+                required
+              >
+
+                <div className="relative">
+
+                  <UserRound
+                    size={15}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-700"
+                  />
+
+                  <select
+                    value={
+                      responsibleUserId
+                    }
+                    onChange={(e) =>
+                      setResponsibleUserId(
+                        e.target.value
+                      )
+                    }
+                    disabled={
+                      loadingProfiles
+                    }
+                    className={`${inputClass} pl-9`}
+                  >
+
+                    <option value="">
+                      Seleccionar responsable
+                    </option>
+
+                    {profiles.map(
+                      (profile) => (
+                        <option
+                          key={
+                            profile.id
+                          }
+                          value={
+                            profile.id
+                          }
+                        >
+                          {
+                            profile.full_name
+                          }
+                        </option>
+                      )
+                    )}
+
+                  </select>
+
+                </div>
+
+              </Field>
+
+              <Field
+                label="Estado"
+                required
+              >
+
+                <select
+                  value={status}
+                  onChange={(e) =>
+                    setStatus(
+                      e.target.value
+                    )
+                  }
+                  className={inputClass}
+                >
+
+                  {productionStatuses.map(
+                    (item) => (
+                      <option
+                        key={
+                          item.value
+                        }
+                        value={
+                          item.value
+                        }
+                      >
+                        {item.label}
+                      </option>
+                    )
+                  )}
+
+                </select>
+
+              </Field>
+
+              <Field
+                label="Lugar"
+              >
+
+                <div className="relative">
+
+                  <MapPin
+                    size={15}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-700"
+                  />
+
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) =>
+                      setLocation(
+                        e.target.value
+                      )
+                    }
+                    placeholder="Ej: Suipacha 859, Rosario"
+                    className={`${inputClass} pl-9`}
+                  />
+
+                </div>
+
+              </Field>
+
+              <div className="md:col-span-2">
+
+                <Field
+                  label="Descripción"
+                >
+
+                  <textarea
+                    value={
+                      description
+                    }
+                    onChange={(e) =>
+                      setDescription(
+                        e.target.value
+                      )
+                    }
+                    rows={4}
+                    className={`${inputClass} h-auto resize-none py-3`}
+                  />
+
+                </Field>
+
+              </div>
+
+            </div>
+
+          </section>
+
+          {/* =====================================
+              FECHA
+          ===================================== */}
+
+          <section className="rounded-xl border border-white/10 bg-[#0B0F12]">
+
+            <div className="border-b border-white/10 px-6 py-5">
+
+              <div className="flex items-center gap-2">
+
+                <CalendarClock
+                  size={16}
+                  className="text-[#45B8E8]"
+                />
+
+                <h2 className="text-sm font-semibold">
+                  Fecha y horario
+                </h2>
+
+              </div>
+
+              <p className="mt-1 text-xs text-zinc-600">
+                Hacé clic en el campo para abrir el calendario.
+              </p>
+
+            </div>
+
+            <div className="grid gap-5 p-6 md:grid-cols-2">
+
+              <Field
+                label="Inicio"
+              >
+
+                <DateTimeInput
+                  value={startAt}
+                  onChange={
+                    setStartAt
+                  }
+                />
+
+              </Field>
+
+              <Field
+                label="Fin estimado"
+              >
+
+                <DateTimeInput
+                  value={endAt}
+                  onChange={
+                    setEndAt
+                  }
+                />
+
+              </Field>
+
+            </div>
+
+          </section>
+
+          {/* =====================================
+              PREPARACIÓN
+          ===================================== */}
+
+          <section className="rounded-xl border border-white/10 bg-[#0B0F12]">
+
+            <div className="border-b border-white/10 px-6 py-5">
+
+              <div className="flex items-center gap-2">
+
+                <ClipboardCheck
+                  size={16}
+                  className="text-[#45B8E8]"
+                />
+
+                <h2 className="text-sm font-semibold">
+                  Preparación
+                </h2>
+
+              </div>
+
+              <p className="mt-1 text-xs text-zinc-600">
+                Control previo a la producción.
+              </p>
+
+            </div>
+
+            <div className="grid gap-5 p-6">
+
+              <Field
+                label="Revisión de preparación"
+              >
+
+                <DateTimeInput
+                  value={
+                    preparationReviewAt
+                  }
+                  onChange={
+                    setPreparationReviewAt
+                  }
+                />
+
+              </Field>
+
+              <Field
+                label="Notas"
+              >
+
+                <textarea
+                  value={notes}
+                  onChange={(e) =>
+                    setNotes(
+                      e.target.value
+                    )
+                  }
+                  rows={5}
+                  placeholder="Accesos, permisos, referencias, horarios, indicaciones..."
+                  className={`${inputClass} h-auto resize-none py-3`}
+                />
+
+              </Field>
+
+            </div>
+
+          </section>
+
+          {/* =====================================
+              ERROR
+          ===================================== */}
+
+          {errorMessage && (
+            <div className="rounded-xl border border-red-900/30 bg-red-950/20 px-5 py-4 text-sm text-red-400">
+              {errorMessage}
+            </div>
+          )}
+
+          {/* =====================================
+              ACCIONES
+          ===================================== */}
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+
+            <Link
+              href={`/producciones/${productionId}`}
+              className="inline-flex h-11 items-center justify-center rounded-lg border border-white/10 px-5 text-sm text-zinc-400 transition hover:bg-white/5 hover:text-white"
+            >
+              Cancelar
+            </Link>
+
+            <button
+              type="button"
+              onClick={
+                handleSave
+              }
+              disabled={
+                saving
+              }
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#20A4DD] px-5 text-sm font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+
+              <Save
+                size={16}
+              />
+
+              {saving
+                ? "Guardando..."
+                : "Guardar cambios"}
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+  );
+}
+
+/*
+ * =====================================
+ * DATE PICKER
+ * =====================================
+ */
+
+function DateTimeInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (
+    value: string
+  ) => void;
+}) {
+  function openPicker(
+    element: HTMLInputElement
+  ) {
+    try {
+      if (
+        typeof element.showPicker ===
+        "function"
+      ) {
+        element.showPicker();
+      }
+    } catch {
+      // fallback nativo
+    }
+  }
+
+  return (
+    <div className="relative">
+
+      <CalendarClock
+        size={15}
+        className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[#45B8E8]"
+      />
+
+      <input
+        type="datetime-local"
+        value={value}
+        onChange={(e) =>
+          onChange(
+            e.target.value
+          )
+        }
+        onClick={(e) =>
+          openPicker(
+            e.currentTarget
+          )
+        }
+        onFocus={(e) =>
+          openPicker(
+            e.currentTarget
+          )
+        }
+        className={`${inputClass} cursor-pointer pl-9 pr-4 [color-scheme:dark]`}
+      />
+
+    </div>
+  );
+}
+
+/*
+ * =====================================
+ * FIELD
+ * =====================================
+ */
+
+function Field({
+  label,
+  required = false,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+
+      <label className="mb-2 block text-xs font-medium text-zinc-500">
+
+        {label}
+
+        {required && (
+          <span className="ml-1 text-[#45B8E8]">
+            *
+          </span>
+        )}
+
+      </label>
+
+      {children}
+
+    </div>
+  );
+}
+
+/*
+ * =====================================
+ * CONVERTIR FECHA SUPABASE
+ * A DATETIME-LOCAL
+ * =====================================
+ */
+
+function toLocalDateTimeInput(
+  value: string | null
+) {
+  if (!value) {
+    return "";
+  }
+
+  const date =
+    new Date(value);
+
+  const year =
+    date.getFullYear();
+
+  const month =
+    String(
+      date.getMonth() + 1
+    ).padStart(
+      2,
+      "0"
+    );
+
+  const day =
+    String(
+      date.getDate()
+    ).padStart(
+      2,
+      "0"
+    );
+
+  const hours =
+    String(
+      date.getHours()
+    ).padStart(
+      2,
+      "0"
+    );
+
+  const minutes =
+    String(
+      date.getMinutes()
+    ).padStart(
+      2,
+      "0"
+    );
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+/*
+ * =====================================
+ * INPUT STYLE
+ * =====================================
+ */
+
+const inputClass =
+  "h-10 w-full rounded-lg border border-white/10 bg-[#050607] px-3 text-sm text-zinc-300 outline-none transition placeholder:text-zinc-700 focus:border-[#20A4DD] focus:ring-1 focus:ring-[#20A4DD]/20 disabled:cursor-not-allowed disabled:opacity-50";
