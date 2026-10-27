@@ -476,6 +476,14 @@ export default async function ProductionDetailPage({
               Editar producción
             </Link>
 
+            <Link
+              href={`/producciones/${production.id}/carpeta-nas`}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#20A4DD]/30 bg-[#20A4DD]/10 px-4 text-sm text-[#45B8E8] transition hover:bg-[#20A4DD]/20"
+            >
+              <HardDrive size={15} />
+              Preparar carpeta en NAS
+            </Link>
+
           </div>
 
         </div>
