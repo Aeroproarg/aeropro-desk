@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import FolderDownloads from "./folder-downloads";
 
 const supabase = createClient();
 type Person = { id: string; full_name: string };
 type Equipment = { id: string; item_name: string; used_by_user_id: string | null; used_by: Person | Person[] | null };
 type Entry = { equipmentId: string; itemName: string; operatorId: string; operatorName: string; folderName: string };
 type Preview = { rootName: string; entries: Entry[]; snapshot: string; state: string; existing: boolean };
-type Saved = { root_name: string; state: string; last_error: string | null; entries: Entry[] };
+type Saved = { id: string; root_name: string; state: string; last_error: string | null; entries: Entry[] };
 
 function operator(eq: Equipment) {
   return Array.isArray(eq.used_by) ? eq.used_by[0] : eq.used_by;
@@ -35,7 +36,7 @@ export default function NasFolderPage() {
         supabase.from("productions").select("name").eq("id", id).single(),
         supabase.from("production_equipment").select("id,item_name,used_by_user_id,used_by:used_by_user_id(id,full_name)")
           .eq("production_id", id).order("created_at"),
-        supabase.from("nas_folder_plans").select("root_name,state,last_error,entries").eq("production_id", id).maybeSingle(),
+        supabase.from("nas_folder_plans").select("id,root_name,state,last_error,entries").eq("production_id", id).maybeSingle(),
       ]);
       if (cancelled) return;
       if (prod.error || eq.error || plan.error) {
@@ -56,7 +57,7 @@ export default function NasFolderPage() {
     setError("");
     try {
       const { data, error } = await supabase.from("nas_folder_plans")
-        .select("root_name,state,last_error,entries").eq("production_id", id).maybeSingle();
+        .select("id,root_name,state,last_error,entries").eq("production_id", id).maybeSingle();
       if (error) throw error;
       setSaved(data as Saved | null);
     } catch { setError("No se pudo actualizar el estado. Intentá nuevamente."); }
@@ -75,7 +76,7 @@ export default function NasFolderPage() {
       if (confirm) {
         setPreview(null);
         setMessage(result.state === "READY" ? "La carpeta ya está preparada. Podés reutilizarla." : "Solicitud guardada. El NAS la procesará en su próxima revisión.");
-        const plan = await supabase.from("nas_folder_plans").select("root_name,state,last_error,entries").eq("production_id", id).single();
+        const plan = await supabase.from("nas_folder_plans").select("id,root_name,state,last_error,entries").eq("production_id", id).single();
         if (!plan.error) setSaved(plan.data as Saved);
       } else setPreview(result);
     } catch (err: unknown) {
@@ -88,7 +89,7 @@ export default function NasFolderPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <Link href={`/producciones/${id}`} className="text-sm text-cyan-400">← Volver a la producción</Link>
       <header><h1 className="text-2xl font-semibold">Preparar carpeta en NAS</h1><p className="mt-2 text-zinc-400">{name}</p></header>
-      <p className="text-sm text-zinc-400">Seleccioná los equipos que generaron material. Usaremos el operador asignado en Equipamiento. Quien descarga se registra por separado en Material.</p>
+      <p className="text-sm text-zinc-400">Seleccioná los equipos que generaron material. Usaremos el operador asignado en Equipamiento. Al terminar de copiar, confirmá la descarga de cada subcarpeta.</p>
       {error && <p role="alert" className="rounded-lg border border-red-900 bg-red-950/30 p-4 text-red-300">{error}</p>}
       {message && <p role="status" className="rounded-lg border border-cyan-900 p-4 text-cyan-200">{message}</p>}
       {loading ? <p>Cargando equipos…</p> : <>
@@ -97,8 +98,8 @@ export default function NasFolderPage() {
           <p className="break-all font-mono text-sm">Backup/{saved.root_name}</p>
           <p className="text-sm text-zinc-400">{saved.state === "READY" ? "Podés copiar el material desde Finder o el Explorador de Windows." : "El NAS consulta las solicitudes cada 5 minutos."}</p>
           {saved.last_error && <p role="alert" className="text-sm text-amber-300">{saved.last_error}</p>}
-          <ul className="space-y-1 text-sm text-zinc-400">{saved.entries.map(e => <li key={e.equipmentId} className="break-all">{e.folderName}</li>)}</ul>
           <button type="button" className={button} disabled={busy} onClick={refreshStatus}>Actualizar estado</button>
+          <FolderDownloads key={saved.id} plan={saved} disabled={busy} />
         </section>}
         <section className="rounded-xl border border-white/10 bg-[#0B0F12] p-5">
           <h2 className="mb-3 font-semibold">Equipos y operadores</h2>
@@ -122,7 +123,7 @@ export default function NasFolderPage() {
           <button type="button" className={button} disabled={busy} onClick={() => prepare(true)}>Confirmar preparación</button>
         </section>}
       </>}
-      <p className="text-sm text-amber-200/80">Preparar carpetas no confirma la descarga ni el backup. Al terminar de copiar y verificar el material, registralo en <Link className="underline" href={`/producciones/${id}/material`}>Material de la producción</Link>.</p>
+      <p className="text-sm text-amber-200/80">Preparar carpetas no confirma la descarga ni el backup. Confirmá la copia por subcarpeta en esta pantalla; registrá el backup por separado en <Link className="underline" href={`/producciones/${id}/material`}>Material de la producción</Link>.</p>
     </div>
   </main>;
 }

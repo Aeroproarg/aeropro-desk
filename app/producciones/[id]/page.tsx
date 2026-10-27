@@ -5,6 +5,7 @@ import {
 } from "next/navigation";
 
 import ProductionManagementLink from "./production-management-link";
+import NasDownloadSummary from "./nas-download-summary";
 
 import {
   AlertTriangle,
@@ -487,6 +488,8 @@ export default async function ProductionDetailPage({
           </div>
 
         </div>
+
+        <NasDownloadSummary productionId={productionId} />
 
         {/* =====================================
             MÉTRICAS
