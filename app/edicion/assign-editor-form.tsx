@@ -20,15 +20,19 @@ type Profile = {
 type AssignEditorFormProps = {
   pieceId: string;
   profiles: Profile[];
+  initialEditorId?: string | null;
 };
 
 export default function AssignEditorForm({
   pieceId,
   profiles,
+  initialEditorId,
 }: AssignEditorFormProps) {
   const router = useRouter();
 
-  const [editorId, setEditorId] = useState("");
+  const [editorId, setEditorId] = useState(
+    profiles.some(profile => profile.id === initialEditorId) ? initialEditorId! : ""
+  );
   const [targetFirstCutAt, setTargetFirstCutAt] =
     useState("");
 
@@ -90,7 +94,7 @@ export default function AssignEditorForm({
        * primer corte,
        * estado y posición.
        */
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("deliverables")
         .update({
           editor_user_id: editorId,
@@ -109,10 +113,19 @@ export default function AssignEditorForm({
             new Date().toISOString(),
         })
         .eq("id", pieceId)
-        .eq("status", "READY_POST");
+        .eq("status", "READY_POST")
+        .select("id")
+        .maybeSingle();
 
       if (error) {
         throw error;
+      }
+
+      if (!data) {
+        setErrorMessage("La pieza cambió de estado. Actualizá la cola antes de comenzar.");
+        setSaving(false);
+        router.refresh();
+        return;
       }
 
       router.refresh();

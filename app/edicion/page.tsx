@@ -290,12 +290,11 @@ export default async function EditingPage() {
    * =====================================
    */
 
-  const unassignedPieces =
+  const readyPieces =
     allPieces.filter(
       (piece) =>
         piece.status ===
-          "READY_POST" &&
-        !piece.editor_user_id
+          "READY_POST"
     );
 
   const editingPieces =
@@ -457,9 +456,9 @@ export default async function EditingPage() {
         <section className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
 
           <MetricCard
-            label="Sin asignar"
+            label="Listas para edición"
             value={
-              unassignedPieces.length
+              readyPieces.length
             }
             icon={
               <UserRoundPlus
@@ -582,10 +581,10 @@ export default async function EditingPage() {
         ===================================== */}
 
         <EditingSection
-          title="Listas para asignar"
-          description="Piezas listas para postproducción que todavía no tienen editor."
+          title="Listas para edición"
+          description="El material confirmado por carpeta habilita las piezas automáticamente. Asignar y comenzar edición es un paso separado."
           count={
-            unassignedPieces.length
+            readyPieces.length
           }
           icon={
             <UserRoundPlus
@@ -596,7 +595,7 @@ export default async function EditingPage() {
 
           <AssignmentTable
             pieces={
-              unassignedPieces
+              readyPieces
             }
             profiles={
               profiles
@@ -1149,7 +1148,7 @@ function AssignmentTable({
   ) {
     return (
       <div className="px-6 py-10 text-center text-sm text-zinc-700">
-        No hay piezas esperando asignación.
+        No hay piezas listas para comenzar edición.
       </div>
     );
   }
@@ -1262,6 +1261,7 @@ function AssignmentTable({
               </div>
 
               <AssignEditorForm
+                initialEditorId={piece.editor_user_id}
                 pieceId={
                   piece.id
                 }

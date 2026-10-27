@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
-import { folderProgress, type NasDownload, type NasEntry } from "@/utils/nas-downloads";
+import { folderProgress, materialReadiness, type NasDownload, type NasEntry } from "@/utils/nas-downloads";
 
 const supabase = createClient();
 type Plan = { id: string; entries: NasEntry[]; state: string };
@@ -69,12 +70,15 @@ export default function FolderDownloads({ plan, disabled }: { plan: Plan; disabl
   }
 
   const progress = downloads ? folderProgress(plan.entries, downloads) : null;
+  const material = progress ? materialReadiness(plan.state, progress) : null;
   return <div className="space-y-4 border-t border-white/10 pt-4">
     <div>
       <h3 className="font-semibold">Descargas por carpeta</h3>
       <p className="mt-1 text-sm text-zinc-300" aria-live="polite">
         {progress ? `${progress.completed} de ${progress.total} carpetas descargadas` : error ? "Avance no disponible" : "Consultando descargas…"}
       </p>
+      {material && <p className={`mt-2 text-sm ${material.ready ? "text-emerald-300" : "text-amber-200"}`} role="status">{material.label}</p>}
+      {material?.ready && <p className="mt-2 text-sm text-zinc-400">El material de esta producción está disponible. Las piezas del trabajo pasarán a listas cuando todas sus producciones estén completas. <Link href="/edicion" className="text-cyan-400 underline">Ir a Edición</Link></p>}
       <p className="mt-2 text-sm text-zinc-400">Marcá cada carpeta cuando haya terminado la copia de todo su material. Se registra tu usuario y la hora de confirmación.</p>
     </div>
     {error && <p role="alert" className="rounded-lg border border-red-900 p-3 text-sm text-red-300">{error}</p>}

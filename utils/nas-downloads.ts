@@ -25,3 +25,12 @@ export function folderProgress(
     completed: [...folders].filter(id => confirmed.has(id)).length,
   };
 }
+
+export function materialReadiness(state: string, progress: { total: number; completed: number }) {
+  const ready = state === "READY" && progress.total > 0 && progress.completed === progress.total;
+  const label = ready ? "Disponible para edición"
+    : progress.total === 0 ? "Sin carpetas preparadas"
+    : progress.completed < progress.total ? `Material pendiente: ${progress.completed} de ${progress.total} carpetas descargadas`
+    : "Esperando confirmación de carpetas del NAS";
+  return { ready, label };
+}
