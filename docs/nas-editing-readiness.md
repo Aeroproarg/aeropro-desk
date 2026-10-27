@@ -6,6 +6,8 @@ Una producción está disponible cuando el NAS confirmó su preparación y todas
 
 La disponibilidad se muestra en la producción y en su pantalla de carpetas. Si falta material, muestra **Material pendiente: X de Y carpetas descargadas**.
 
+Cuando la producción está disponible, su tarjeta también lista los trabajos vinculados y explica qué verá Edición: piezas listas, trabajo sin vincular, trabajo sin entregables, piezas ya iniciadas u otra producción del trabajo que todavía frena el material. Es solo lectura: el estado de las piezas lo siguen decidiendo los disparadores de la base.
+
 La cola de Edición contiene entregables, vinculados a trabajos. Los trabajos se vinculan con producciones mediante `production_jobs`:
 
 - Si todas las producciones de un trabajo tienen su material disponible, sus piezas en `DEFINED`, `PENDING_MATERIAL` o `READY_POST` quedan en `READY_POST`.
