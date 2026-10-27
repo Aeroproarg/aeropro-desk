@@ -15,12 +15,10 @@ import {
   CheckCircle2,
   CircleUserRound,
   ClipboardCheck,
-  Download,
   Film,
   HardDrive,
   Link2,
   MapPin,
-  Package,
   Pencil,
   Settings2,
   Users,
@@ -109,8 +107,6 @@ export default async function ProductionDetailPage({
     externalParticipantsResult,
     equipmentResult,
     checklistResult,
-    downloadsResult,
-    backupsResult,
   ] = await Promise.all([
     supabase
       .from("production_jobs")
@@ -255,62 +251,6 @@ export default async function ProductionDetailPage({
         }
       ),
 
-    supabase
-      .from("material_downloads")
-      .select(`
-        id,
-        production_id,
-        material_label,
-        status,
-        responsible_user_id,
-        downloaded_at,
-        temporary_path,
-        comment,
-        created_at,
-
-        responsible:responsible_user_id (
-          id,
-          full_name
-        )
-      `)
-      .eq(
-        "production_id",
-        productionId
-      )
-      .order(
-        "created_at",
-        {
-          ascending: true,
-        }
-      ),
-
-    supabase
-      .from("material_backups")
-      .select(`
-        id,
-        production_id,
-        status,
-        responsible_user_id,
-        performed_at,
-        final_path,
-        comment,
-        created_at,
-
-        responsible:responsible_user_id (
-          id,
-          full_name
-        )
-      `)
-      .eq(
-        "production_id",
-        productionId
-      )
-      .order(
-        "created_at",
-        {
-          ascending: true,
-        }
-      ),
   ]);
 
   /*
@@ -335,20 +275,12 @@ export default async function ProductionDetailPage({
   const checklist =
     checklistResult.data ?? [];
 
-  const downloads =
-    downloadsResult.data ?? [];
-
-  const backups =
-    backupsResult.data ?? [];
-
   const relatedError =
     jobsResult.error ||
     participantsResult.error ||
     externalParticipantsResult.error ||
     equipmentResult.error ||
-    checklistResult.error ||
-    downloadsResult.error ||
-    backupsResult.error;
+    checklistResult.error;
 
   /*
    * =====================================
@@ -358,22 +290,6 @@ export default async function ProductionDetailPage({
 
   const checklistResolved =
     checklist.filter(
-      (item) =>
-        isCompletedStatus(
-          item.status
-        )
-    ).length;
-
-  const downloadsCompleted =
-    downloads.filter(
-      (item) =>
-        isDownloadCompleted(
-          item.status
-        )
-    ).length;
-
-  const backupsCompleted =
-    backups.filter(
       (item) =>
         isCompletedStatus(
           item.status
@@ -495,7 +411,7 @@ export default async function ProductionDetailPage({
             MÉTRICAS
         ===================================== */}
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-4 sm:grid-cols-3">
 
           <MetricCard
             label="Trabajos"
@@ -526,26 +442,6 @@ export default async function ProductionDetailPage({
             value={`${checklistResolved}/${checklist.length}`}
             icon={
               <ClipboardCheck
-                size={17}
-              />
-            }
-          />
-
-          <MetricCard
-            label="Descargas"
-            value={`${downloadsCompleted}/${downloads.length}`}
-            icon={
-              <Download
-                size={17}
-              />
-            }
-          />
-
-          <MetricCard
-            label="Backups"
-            value={`${backupsCompleted}/${backups.length}`}
-            icon={
-              <HardDrive
                 size={17}
               />
             }
@@ -1257,205 +1153,6 @@ export default async function ProductionDetailPage({
         </section>
 
         {/* =====================================
-            MATERIAL
-        ===================================== */}
-
-        <div className="mt-6 grid gap-6 xl:grid-cols-2">
-
-          <section className="rounded-xl border border-white/10 bg-[#0B0F12]">
-
-            <SectionHeader
-              title="Descargas"
-              subtitle="Descarga inicial del material."
-              icon={
-                <Download
-                  size={17}
-                />
-              }
-              count={
-                downloads.length
-              }
-            />
-
-            {downloads.length ===
-            0 ? (
-
-              <EmptyState
-                text="Todavía no hay descargas registradas."
-              />
-
-            ) : (
-
-              <div className="divide-y divide-white/5">
-
-                {downloads.map(
-                  (
-                    item: any
-                  ) => {
-
-                    const responsible =
-                      relationValue(
-                        item.responsible,
-                        "full_name"
-                      );
-
-                    return (
-                      <div
-                        key={
-                          item.id
-                        }
-                        className="px-5 py-4"
-                      >
-
-                        <div className="flex items-center justify-between gap-4">
-
-                          <p className="text-sm text-zinc-300">
-                            {
-                              item.material_label
-                            }
-                          </p>
-
-                          <MaterialStatusBadge
-                            status={
-                              item.status
-                            }
-                          />
-
-                        </div>
-
-                        <div className="mt-2 space-y-1 text-[10px] text-zinc-700">
-
-                          {responsible && (
-                            <p>
-                              Responsable:{" "}
-                              {responsible}
-                            </p>
-                          )}
-
-                          {item.temporary_path && (
-                            <p>
-                              Temporal:{" "}
-                              {
-                                item.temporary_path
-                              }
-                            </p>
-                          )}
-
-                        </div>
-
-                      </div>
-                    );
-                  }
-                )}
-
-              </div>
-
-            )}
-
-          </section>
-
-          <section className="rounded-xl border border-white/10 bg-[#0B0F12]">
-
-            <SectionHeader
-              title="Backups"
-              subtitle="Respaldo y ubicación definitiva."
-              icon={
-                <HardDrive
-                  size={17}
-                />
-              }
-              count={
-                backups.length
-              }
-            />
-
-            {backups.length ===
-            0 ? (
-
-              <EmptyState
-                text="Todavía no hay backups registrados."
-              />
-
-            ) : (
-
-              <div className="divide-y divide-white/5">
-
-                {backups.map(
-                  (
-                    item: any
-                  ) => {
-
-                    const responsible =
-                      relationValue(
-                        item.responsible,
-                        "full_name"
-                      );
-
-                    return (
-                      <div
-                        key={
-                          item.id
-                        }
-                        className="px-5 py-4"
-                      >
-
-                        <div className="flex items-center justify-between gap-4">
-
-                          <div className="flex items-center gap-2">
-
-                            <Package
-                              size={14}
-                              className="text-zinc-600"
-                            />
-
-                            <p className="text-sm text-zinc-300">
-                              Backup
-                            </p>
-
-                          </div>
-
-                          <MaterialStatusBadge
-                            status={
-                              item.status
-                            }
-                          />
-
-                        </div>
-
-                        <div className="mt-2 space-y-1 text-[10px] text-zinc-700">
-
-                          {responsible && (
-                            <p>
-                              Responsable:{" "}
-                              {responsible}
-                            </p>
-                          )}
-
-                          {item.final_path && (
-                            <p>
-                              Destino:{" "}
-                              {
-                                item.final_path
-                              }
-                            </p>
-                          )}
-
-                        </div>
-
-                      </div>
-                    );
-                  }
-                )}
-
-              </div>
-
-            )}
-
-          </section>
-
-        </div>
-
-        {/* =====================================
             NOTAS
         ===================================== */}
 
@@ -1904,40 +1601,6 @@ function getProductionStatusConfig(
 
 /*
  * =====================================
- * MATERIAL
- * =====================================
- */
-
-function MaterialStatusBadge({
-  status,
-}: {
-  status: string;
-}) {
-  const completed =
-    isCompletedStatus(
-      status
-    ) ||
-    isDownloadCompleted(
-      status
-    );
-
-  return (
-    <span
-      className={`rounded-full border px-2.5 py-1 text-[10px] ${
-        completed
-          ? "border-emerald-900/40 bg-emerald-950/20 text-emerald-400"
-          : "border-amber-900/40 bg-amber-950/20 text-amber-400"
-      }`}
-    >
-      {formatGenericStatus(
-        status
-      )}
-    </span>
-  );
-}
-
-/*
- * =====================================
  * HELPERS
  * =====================================
  */
@@ -2077,49 +1740,5 @@ function isCompletedStatus(
     "RESOLVED",
   ].includes(
     status
-  );
-}
-
-function isDownloadCompleted(
-  status: string
-) {
-  return [
-    "COMPLETED",
-    "DONE",
-    "DOWNLOADED",
-  ].includes(
-    status
-  );
-}
-
-function formatGenericStatus(
-  value: string
-) {
-  const labels: Record<
-    string,
-    string
-  > = {
-    PENDING:
-      "Pendiente",
-
-    COMPLETED:
-      "Completado",
-
-    DONE:
-      "Completado",
-
-    DOWNLOADED:
-      "Descargado",
-
-    IN_PROGRESS:
-      "En proceso",
-
-    RESOLVED:
-      "Resuelto",
-  };
-
-  return (
-    labels[value] ??
-    value
   );
 }
