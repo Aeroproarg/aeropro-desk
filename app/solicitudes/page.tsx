@@ -1,4 +1,5 @@
 import { displayTimeZone } from "@/utils/dates";
+import Form from "next/form";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
@@ -8,9 +9,32 @@ import {
   ClipboardList,
   Plus,
   Search,
+  X,
 } from "lucide-react";
 
-export default async function RequestsPage() {
+// Sin tildes ni mayúsculas: "Rosario" encuentra "rosário".
+function normalizeSearch(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+// Las relaciones de Supabase pueden llegar como objeto o como lista.
+function relationValue(relation: any, key: string) {
+  return Array.isArray(relation) ? relation[0]?.[key] : relation?.[key];
+}
+
+export default async function RequestsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[] }>;
+}) {
+  const rawQuery = (await searchParams).q;
+  const query = (Array.isArray(rawQuery) ? rawQuery[0] ?? "" : rawQuery ?? "").trim().slice(0, 100);
+  const normalizedQuery = normalizeSearch(query);
+
   const supabase = await createClient();
 
   const {
@@ -45,6 +69,19 @@ export default async function RequestsPage() {
     `)
     .order("created_at", { ascending: false });
 
+  // Busca por título, cliente, proyecto, responsable o canal.
+  const visibleRequests = normalizedQuery
+    ? (requests ?? []).filter((request: any) =>
+        [
+          request.title,
+          relationValue(request.clients, "name"),
+          relationValue(request.projects, "name"),
+          relationValue(request.profiles, "full_name"),
+          relationValue(request.request_source_channels, "name"),
+        ].some((field) => normalizeSearch(field).includes(normalizedQuery))
+      )
+    : requests ?? [];
+
   return (
     <main className="min-h-screen bg-[#050607] text-white">
       <div className="mx-auto max-w-[1600px] px-5 py-8 md:px-8">
@@ -77,10 +114,30 @@ export default async function RequestsPage() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-[#0B0F12] px-3 text-sm text-zinc-500">
+            <Form
+              action="/solicitudes"
+              className="flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-[#0B0F12] px-3 text-sm text-zinc-500 focus-within:border-[#20A4DD]/50"
+            >
               <Search size={17} />
-              Buscar solicitud...
-            </div>
+              <input
+                type="text"
+                enterKeyHint="search"
+                name="q"
+                defaultValue={query}
+                placeholder="Buscar solicitud..."
+                aria-label="Buscar solicitud por título, cliente, proyecto, responsable o canal"
+                className="w-56 bg-transparent text-white placeholder:text-zinc-500 focus:outline-none"
+              />
+              {query && (
+                <Link
+                  href="/solicitudes"
+                  aria-label="Limpiar búsqueda"
+                  className="text-zinc-500 transition hover:text-white"
+                >
+                  <X size={16} />
+                </Link>
+              )}
+            </Form>
 
             <Link
               href="/solicitudes/nueva"
@@ -91,6 +148,18 @@ export default async function RequestsPage() {
             </Link>
           </div>
         </div>
+
+        {query && !error && (
+          <p className="mb-3 text-sm text-zinc-500">
+            {visibleRequests.length === 1
+              ? "1 solicitud"
+              : `${visibleRequests.length} solicitudes`}{" "}
+            para “{query}”.{" "}
+            <Link href="/solicitudes" className="text-[#45B8E8] hover:underline">
+              Ver todas
+            </Link>
+          </p>
+        )}
 
         {error ? (
           <div className="rounded-xl border border-red-900/40 bg-red-950/20 p-5 text-sm text-red-300">
@@ -108,7 +177,16 @@ export default async function RequestsPage() {
               <div className="text-right">Acciones</div>
             </div>
 
-            {!requests || requests.length === 0 ? (
+            {query && visibleRequests.length === 0 ? (
+              <div className="flex min-h-[200px] flex-col items-center justify-center px-6 text-center">
+                <p className="text-sm font-medium text-zinc-300">
+                  No hay solicitudes que coincidan con “{query}”
+                </p>
+                <p className="mt-2 text-xs text-zinc-600">
+                  Probá con otra palabra: título, cliente, proyecto, responsable o canal.
+                </p>
+              </div>
+            ) : visibleRequests.length === 0 ? (
               <div className="flex min-h-[320px] flex-col items-center justify-center px-6 text-center">
                 <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.03] text-zinc-600">
                   <ClipboardList size={20} />
@@ -133,7 +211,7 @@ export default async function RequestsPage() {
               </div>
             ) : (
               <div>
-                {requests.map((request: any) => {
+                {visibleRequests.map((request: any) => {
                   const clientName = Array.isArray(request.clients)
                     ? request.clients[0]?.name
                     : request.clients?.name;
