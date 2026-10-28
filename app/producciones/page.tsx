@@ -554,7 +554,8 @@ export default async function ProductionsPage({
               />
 
               <input
-                type="search"
+                type="text"
+                enterKeyHint="search"
                 name="q"
                 defaultValue={query}
                 placeholder="Buscar producción..."
