@@ -508,6 +508,12 @@ export default async function ProductionsPage({
           )
       : [];
 
+  // Carpetas creadas a mano en Backup que el NAS detectó y todavía nadie vinculó a una producción.
+  const { count: unlinkedDetections, error: detectionsError } = await supabase
+    .from("nas_material_detections")
+    .select("id", { count: "exact", head: true })
+    .eq("link_status", "UNLINKED");
+
   const now =
     new Date();
 
@@ -608,6 +614,23 @@ export default async function ProductionsPage({
                 </Link>
               )}
             </Form>
+
+            {!detectionsError && (
+              <Link
+                href="/producciones/material-nas"
+                title="Carpetas creadas a mano en Backup, detectadas por el NAS"
+                className={`inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm transition ${
+                  (unlinkedDetections ?? 0) > 0
+                    ? "border-amber-700/50 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40"
+                    : "border-white/10 bg-[#0B0F12] text-zinc-400 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                Material detectado
+                {(unlinkedDetections ?? 0) > 0 && (
+                  <span className="rounded-full bg-amber-400/20 px-2 text-xs">{unlinkedDetections} sin vincular</span>
+                )}
+              </Link>
+            )}
 
             <Link
               href="/producciones/nueva"

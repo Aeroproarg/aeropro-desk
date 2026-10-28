@@ -84,6 +84,7 @@ export default async function Home() {
     feedbackResult,
     requestsResult,
     filingsResult,
+    detectionsResult,
   ] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", user.id).single(),
     supabase.from("user_roles").select("roles ( name )").eq("user_id", user.id),
@@ -111,7 +112,13 @@ export default async function Home() {
       .lte("next_followup_at", nowIso),
     // Si la actualización "material acomodado" no está instalada, esta consulta falla y se ignora.
     supabase.from("nas_material_filings").select("plan_id"),
+    // Carpetas creadas a mano en Backup, detectadas por el NAS y sin vincular a una producción.
+    supabase
+      .from("nas_material_detections")
+      .select("id", { count: "exact", head: true })
+      .eq("link_status", "UNLINKED"),
   ]);
+  const unlinkedDetections = detectionsResult.error ? 0 : detectionsResult.count ?? 0;
 
   const loadError = [piecesResult, productionsResult, pendingResult, requestsResult].some((r) => r.error);
 
@@ -217,6 +224,17 @@ export default async function Home() {
       title: name,
       href: `/producciones/${plan.production_id}/carpeta-nas`,
     })),
+    ...(unlinkedDetections > 0
+      ? [
+          {
+            key: "nas-detections",
+            date: null,
+            kind: "Carpetas creadas a mano en el NAS, sin vincular a una producción",
+            title: `${unlinkedDetections} ${unlinkedDetections === 1 ? "carpeta detectada" : "carpetas detectadas"}`,
+            href: "/producciones/material-nas",
+          },
+        ]
+      : []),
     ...overduePending.map((p) => ({
       key: `pending-${p.id}`,
       date: p.due_at,
