@@ -123,7 +123,7 @@ export default function NasFolderPage() {
           <button type="button" className={button} disabled={busy} onClick={() => prepare(true)}>Confirmar preparación</button>
         </section>}
       </>}
-      <p className="text-sm text-amber-200/80">Preparar carpetas no confirma la descarga ni el backup. Confirmá la copia por subcarpeta en esta pantalla; registrá el backup por separado en <Link className="underline" href={`/producciones/${id}/material`}>Material de la producción</Link>.</p>
+      <p className="text-sm text-amber-200/80">Preparar carpetas no confirma la descarga. Confirmá la copia de cada subcarpeta y, al terminar, dónde quedó acomodado el material en la carpeta del cliente.</p>
     </div>
   </main>;
 }

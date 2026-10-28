@@ -83,6 +83,7 @@ export default async function Home() {
     pendingResult,
     feedbackResult,
     requestsResult,
+    filingsResult,
   ] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", user.id).single(),
     supabase.from("user_roles").select("roles ( name )").eq("user_id", user.id),
@@ -96,7 +97,7 @@ export default async function Home() {
       .not("status", "in", `(${CLOSED_PRODUCTION.map((s) => `"${s}"`).join(",")})`),
     supabase
       .from("nas_folder_plans")
-      .select("production_id,state,entries,nas_folder_downloads ( equipment_id ),productions:production_id ( name )"),
+      .select("id,production_id,state,entries,nas_folder_downloads ( equipment_id ),productions:production_id ( name )"),
     supabase
       .from("pending_items")
       .select("id,description,due_at,job_id")
@@ -108,6 +109,8 @@ export default async function Home() {
       .in("status", OPEN_REQUEST)
       .not("next_followup_at", "is", null)
       .lte("next_followup_at", nowIso),
+    // Si la actualización "material acomodado" no está instalada, esta consulta falla y se ignora.
+    supabase.from("nas_material_filings").select("plan_id"),
   ]);
 
   const loadError = [piecesResult, productionsResult, pendingResult, requestsResult].some((r) => r.error);
@@ -163,7 +166,13 @@ export default async function Home() {
   const pendingDownloads = planStatus.filter(
     ({ plan, progress }) => plan.state === "READY" && progress.total > 0 && progress.completed < progress.total
   );
-  const preparingFolders = planStatus.filter(({ plan }) => plan.state === "PENDING" || plan.state === "ERROR");
+  const filedPlanIds = new Set((filingsResult.error ? [] : filingsResult.data ?? []).map((row) => row.plan_id as string));
+  const unfiledMaterial = filingsResult.error
+    ? []
+    : planStatus.filter(
+        ({ plan, progress }) =>
+          plan.state === "READY" && progress.total > 0 && progress.completed === progress.total && !filedPlanIds.has(plan.id)
+      );
 
   // Requieren atención
   const attention: Item[] = [
@@ -199,6 +208,13 @@ export default async function Home() {
       kind: "Descargas pendientes",
       title: name,
       detail: `${progress.completed} de ${progress.total} carpetas confirmadas`,
+      href: `/producciones/${plan.production_id}/carpeta-nas`,
+    })),
+    ...unfiledMaterial.map(({ plan, name }) => ({
+      key: `filing-${plan.production_id}`,
+      date: null,
+      kind: "Material sin acomodar en la carpeta del cliente",
+      title: name,
       href: `/producciones/${plan.production_id}/carpeta-nas`,
     })),
     ...overduePending.map((p) => ({
@@ -342,7 +358,7 @@ export default async function Home() {
               <Panel title="Producción y material" subtitle="Rodajes y carpetas del NAS" href="/producciones">
                 <div className="grid grid-cols-3 gap-3">
                   <MiniMetric label="Descargas pendientes" value={pendingDownloads.length} />
-                  <MiniMetric label="Carpetas en preparación" value={preparingFolders.length} />
+                  <MiniMetric label="Sin acomodar" value={unfiledMaterial.length} />
                   <MiniMetric label="Próximas producciones" value={upcomingProductions.length} />
                 </div>
               </Panel>

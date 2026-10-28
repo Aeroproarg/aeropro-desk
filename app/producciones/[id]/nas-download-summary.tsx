@@ -11,7 +11,7 @@ type SourceRow = { job_id: string; production_id: string; productions: { name: s
 export default async function NasDownloadSummary({ productionId }: { productionId: string }) {
   const supabase = await createClient();
   const { data: plan, error } = await supabase.from("nas_folder_plans")
-    .select("root_name,state,entries,nas_folder_downloads(equipment_id)")
+    .select("id,root_name,state,entries,nas_folder_downloads(equipment_id)")
     .eq("production_id", productionId).maybeSingle();
   if (error) return <section className="mb-6 rounded-xl border border-white/10 p-5">
     <p className="text-sm text-zinc-400">No se pudo consultar el avance de descargas por carpeta.</p>
@@ -25,11 +25,26 @@ export default async function NasDownloadSummary({ productionId }: { productionI
     <p className={`mt-2 text-lg ${material.ready ? "text-emerald-300" : "text-amber-200"}`}>{material.label}</p>
     {material.ready && <p className="mt-1 text-sm text-zinc-300">{progress.completed} de {progress.total} carpetas descargadas. La edición todavía debe iniciarse desde su cola.</p>}
     <p className="mt-1 break-all text-xs text-zinc-500">{plan.root_name}</p>
-    <p className="mt-2 text-xs text-zinc-500">Confirmaciones manuales de copia. El backup se registra por separado.</p>
+    <p className="mt-2 text-xs text-zinc-500">Confirmaciones manuales de copia.</p>
+    <FilingStatus planId={plan.id} ready={material.ready} />
     {material.ready && <EditingJobs productionId={productionId} />}
     <Link className="mt-3 inline-block text-sm text-cyan-400" href={`/producciones/${productionId}/carpeta-nas`}>Ver carpetas y registrar descargas →</Link>
     {material.ready && <Link className="ml-4 mt-3 inline-block text-sm text-cyan-400" href="/edicion">Ir a Edición →</Link>}
   </section>;
+}
+
+// Si el material ya se acomodó en la carpeta del cliente, muestra dónde. Consulta aparte:
+// si la actualización de la base no está instalada, simplemente no muestra nada.
+async function FilingStatus({ planId, ready }: { planId: string; ready: boolean }) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("nas_material_filings")
+    .select("filed_path,filed_by_name").eq("plan_id", planId).maybeSingle();
+  if (error) return null;
+  if (data) return <p className="mt-2 text-sm text-zinc-300">
+    <span className="text-emerald-300">Acomodado</span> en <code className="break-all rounded bg-white/[0.04] px-1.5 py-0.5 text-xs">{data.filed_path}</code>
+    <span className="text-xs text-zinc-500"> · {data.filed_by_name}</span>
+  </p>;
+  return ready ? <p className="mt-2 text-sm text-amber-200">Falta acomodar el material en la carpeta del cliente.</p> : null;
 }
 
 // Solo lectura: explica por qué Edición muestra o no piezas para esta producción.

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { folderProgress, materialReadiness, type NasDownload, type NasEntry } from "@/utils/nas-downloads";
+import MaterialFiling from "./material-filing";
 
 const supabase = createClient();
 type Plan = { id: string; entries: NasEntry[]; state: string };
@@ -103,6 +104,7 @@ export default function FolderDownloads({ plan, disabled }: { plan: Plan; disabl
       </li>;
     })}</ul>
     {plan.state !== "READY" && <p className="text-sm text-amber-200">Esperá la confirmación de las carpetas del NAS y tocá Actualizar estado para habilitar las nuevas descargas.</p>}
-    <p className="text-xs text-zinc-400">Es una confirmación manual de la copia; no verifica la integridad de los archivos ni completa el estado de backup.</p>
+    <p className="text-xs text-zinc-400">Es una confirmación manual de la copia; no verifica la integridad de los archivos.</p>
+    <MaterialFiling planId={plan.id} ready={Boolean(material?.ready)} disabled={disabled} />
   </div>;
 }

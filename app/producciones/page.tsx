@@ -3,6 +3,7 @@ import Form from "next/form";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+import { folderProgress, type NasEntry } from "@/utils/nas-downloads";
 
 import {
   AlertTriangle,
@@ -375,6 +376,37 @@ export default async function ProductionsPage({
         row.production_id,
         current
       );
+    }
+  }
+
+  /*
+   * MATERIAL NAS: si la producción usa carpetas NAS, las descargas salen de las
+   * confirmaciones por carpeta y "Acomodado" de la confirmación de material
+   * acomodado en la carpeta del cliente. Las producciones sin NAS conservan los datos anteriores.
+   */
+
+  if (productionIds.length > 0) {
+    const { data: nasPlans, error: nasError } = await supabase
+      .from("nas_folder_plans")
+      .select("production_id,entries,nas_folder_downloads ( equipment_id ),nas_material_filings ( plan_id )")
+      .in("production_id", productionIds);
+
+    if (!nasError) {
+      for (const plan of nasPlans ?? []) {
+        const progress = folderProgress(
+          (plan.entries ?? []) as NasEntry[],
+          plan.nas_folder_downloads ?? []
+        );
+        const filing = Array.isArray(plan.nas_material_filings)
+          ? plan.nas_material_filings[0]
+          : plan.nas_material_filings;
+
+        downloadsByProduction.set(plan.production_id, progress);
+        backupsByProduction.set(plan.production_id, {
+          total: 1,
+          completed: filing ? 1 : 0,
+        });
+      }
     }
   }
 
@@ -1151,7 +1183,7 @@ function ProductionList({
                 </p>
 
                 <p className="mt-2 text-xs text-zinc-400">
-                  Backups{" "}
+                  Acomodado{" "}
                   {
                     backups.completed
                   }

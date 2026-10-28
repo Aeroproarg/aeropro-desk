@@ -30,7 +30,7 @@ const ENTITY_LABELS: Record<string, string> = {
   pending_items: "Pendiente", productions: "Producción", production_jobs: "Vínculo producción-trabajo",
   production_participants: "Participante", production_external_participants: "Participante externo",
   production_equipment: "Equipamiento", production_checklist_items: "Checklist", nas_folder_plans: "Carpetas NAS",
-  nas_folder_downloads: "Descarga de carpeta", editing_sessions: "Sesión de edición",
+  nas_folder_downloads: "Descarga de carpeta", nas_material_filings: "Material acomodado", editing_sessions: "Sesión de edición",
   material_downloads: "Descarga (anterior)", material_backups: "Backup (anterior)", events: "Evento",
   minutes: "Minuta", comments: "Comentario", attachments: "Adjunto", administrative_items: "Ítem administrativo",
   profiles: "Usuario", user_roles: "Rol de usuario",
@@ -45,7 +45,7 @@ const FIELD_LABELS: Record<string, string> = {
   current_version: "Versión actual", job_id: "Trabajo", production_id: "Producción", project_id: "Proyecto",
   client_id: "Cliente", preparation_review_at: "Revisión de preparación", nas_material_managed: "Material NAS",
   state: "Estado NAS", entries: "Carpetas", confirmed_by_name: "Confirmó", user_id: "Usuario", role_id: "Rol",
-  drive_url: "Drive", next_followup_at: "Próximo seguimiento",
+  drive_url: "Drive", next_followup_at: "Próximo seguimiento", filed_path: "Carpeta del cliente",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -98,6 +98,7 @@ function entityHref(row: ActivityRow) {
     case "productions": return `/producciones/${row.entity_id}`;
     case "deliverables": return ctx.job_id ? `/trabajos/${ctx.job_id}/entregables/${row.entity_id}` : null;
     case "nas_folder_plans": return ctx.production_id ? `/producciones/${ctx.production_id}/carpeta-nas` : null;
+    case "nas_material_filings": return null;
     default:
       if (ctx.production_id) return `/producciones/${ctx.production_id}`;
       if (ctx.job_id) return `/trabajos/${ctx.job_id}`;
