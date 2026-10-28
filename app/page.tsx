@@ -86,6 +86,7 @@ export default async function Home() {
     requestsResult,
     filingsResult,
     detectionsResult,
+    eventsResult,
   ] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", user.id).single(),
     supabase.from("user_roles").select("roles ( name )").eq("user_id", user.id),
@@ -118,6 +119,13 @@ export default async function Home() {
       .from("nas_material_detections")
       .select("id", { count: "exact", head: true })
       .eq("link_status", "UNLINKED"),
+    // Reuniones y eventos del calendario (si la actualización del calendario no está instalada, se ignora).
+    supabase
+      .from("events")
+      .select("id,title,start_at,location,status")
+      .eq("status", "SCHEDULED")
+      .gte("start_at", nowIso)
+      .lte("start_at", new Date(now.getTime() + 7 * DAY_MS).toISOString()),
   ]);
   const unlinkedDetections = detectionsResult.error ? 0 : detectionsResult.count ?? 0;
 
@@ -264,6 +272,14 @@ export default async function Home() {
       detail: p.location ?? undefined,
       href: `/producciones/${p.id}`,
     })),
+    ...(eventsResult.error ? [] : eventsResult.data ?? []).map((e) => ({
+      key: `event-${e.id}`,
+      date: e.start_at,
+      kind: "Reunión",
+      title: e.title,
+      detail: e.location ?? undefined,
+      href: `/calendario/eventos/${e.id}`,
+    })),
     ...piecesWeek.map((p) => ({
       key: `deadline-${p.id}`,
       date: p.deadline,
@@ -356,7 +372,7 @@ export default async function Home() {
                 )}
               </Panel>
 
-              <Panel title="Próximos 7 días" subtitle="Producciones y entregas">
+              <Panel title="Próximos 7 días" subtitle="Producciones, reuniones y entregas">
                 {agenda.length === 0 ? (
                   <EmptyState
                     title="Sin actividades próximas"

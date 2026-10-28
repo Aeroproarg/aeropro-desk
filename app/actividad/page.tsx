@@ -31,7 +31,7 @@ const ENTITY_LABELS: Record<string, string> = {
   production_participants: "Participante", production_external_participants: "Participante externo",
   production_equipment: "Equipamiento", production_checklist_items: "Checklist", nas_folder_plans: "Carpetas NAS",
   nas_folder_downloads: "Descarga de carpeta", nas_material_filings: "Material acomodado", editing_sessions: "Sesión de edición",
-  material_downloads: "Descarga (anterior)", material_backups: "Backup (anterior)", events: "Evento",
+  material_downloads: "Descarga (anterior)", material_backups: "Backup (anterior)", events: "Reunión / evento", event_participants: "Participante de reunión",
   minutes: "Minuta", comments: "Comentario", attachments: "Adjunto", administrative_items: "Ítem administrativo",
   profiles: "Usuario", user_roles: "Rol de usuario",
 };
@@ -47,6 +47,7 @@ const FIELD_LABELS: Record<string, string> = {
   state: "Estado NAS", entries: "Carpetas", confirmed_by_name: "Confirmó", user_id: "Usuario", role_id: "Rol",
   drive_url: "Drive", next_followup_at: "Próximo seguimiento", filed_path: "Carpeta del cliente",
   cuenta: "Cuenta", usual_specialty: "Especialidad", availability: "Disponibilidad", theme: "Apariencia", avatar_url: "Foto",
+  event_type: "Tipo", external_name: "Nombre externo", external_email: "Mail externo", external_company: "Empresa",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -59,6 +60,7 @@ const STATUS_LABELS: Record<string, string> = {
   READY: "Lista", COMPLETED: "Completada", NOT_COMPLETED: "No realizada", CANCELLED: "Cancelada",
   PENDING: "Pendiente", RESOLVED: "Resuelto", NEW: "Nueva", CONFIRMED: "Confirmada",
   AVAILABLE: "Disponible", UNAVAILABLE: "No disponible", dark: "Oscuro", light: "Claro", system: "Automático",
+  DONE: "Realizado", MEETING: "Reunión interna", CLIENT_MEETING: "Reunión con cliente", VISIT: "Visita / scouting", OTHER: "Otro",
 };
 
 const ACTION_LABELS: Record<string, string> = { INSERT: "creó", UPDATE: "modificó", DELETE: "borró" };
@@ -103,6 +105,8 @@ function entityHref(row: ActivityRow) {
     case "requests": return `/solicitudes/${row.entity_id}`;
     case "jobs": return `/trabajos/${row.entity_id}`;
     case "productions": return `/producciones/${row.entity_id}`;
+    case "events": return `/calendario/eventos/${row.entity_id}`;
+    case "event_participants": return ctx.event_id ? `/calendario/eventos/${ctx.event_id}` : null;
     case "deliverables": return ctx.job_id ? `/trabajos/${ctx.job_id}/entregables/${row.entity_id}` : null;
     case "nas_folder_plans": return ctx.production_id ? `/producciones/${ctx.production_id}/carpeta-nas` : null;
     case "nas_material_filings": return null;

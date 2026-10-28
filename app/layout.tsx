@@ -26,6 +26,7 @@ const NAV_LINKS: NavLink[] = [
   { label: "Proyectos", href: "/proyectos" },
   { label: "Trabajos", href: "/trabajos" },
   { label: "Producciones", href: "/producciones" },
+  { label: "Calendario", href: "/calendario" },
   { label: "Edición", href: "/edicion" },
   { label: "Clientes", href: "/clientes" },
   { label: "Usuarios", href: "/usuarios" },
