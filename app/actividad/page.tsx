@@ -46,7 +46,7 @@ const FIELD_LABELS: Record<string, string> = {
   client_id: "Cliente", preparation_review_at: "Revisión de preparación", nas_material_managed: "Material NAS",
   state: "Estado NAS", entries: "Carpetas", confirmed_by_name: "Confirmó", user_id: "Usuario", role_id: "Rol",
   drive_url: "Drive", next_followup_at: "Próximo seguimiento", filed_path: "Carpeta del cliente",
-  cuenta: "Cuenta", usual_specialty: "Especialidad", availability: "Disponibilidad",
+  cuenta: "Cuenta", usual_specialty: "Especialidad", availability: "Disponibilidad", theme: "Apariencia", avatar_url: "Foto",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -58,7 +58,7 @@ const STATUS_LABELS: Record<string, string> = {
   PENDING_PLANNING: "Pendiente planificación", PENDING_DATE: "Pendiente fecha", SCHEDULED: "Programada",
   READY: "Lista", COMPLETED: "Completada", NOT_COMPLETED: "No realizada", CANCELLED: "Cancelada",
   PENDING: "Pendiente", RESOLVED: "Resuelto", NEW: "Nueva", CONFIRMED: "Confirmada",
-  AVAILABLE: "Disponible", UNAVAILABLE: "No disponible",
+  AVAILABLE: "Disponible", UNAVAILABLE: "No disponible", dark: "Oscuro", light: "Claro", system: "Automático",
 };
 
 const ACTION_LABELS: Record<string, string> = { INSERT: "creó", UPDATE: "modificó", DELETE: "borró" };

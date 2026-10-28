@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Camera, KeyRound, Save, Trash2, UserRound } from "lucide-react";
+import { ArrowLeft, Camera, KeyRound, Monitor, Moon, Save, Sun, Trash2, UserRound } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import Avatar from "../avatar";
 
@@ -75,6 +75,9 @@ export default function MyProfilePage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const [theme, setTheme] = useState("dark");
+  const [themeError, setThemeError] = useState("");
+
   const [password, setPassword] = useState("");
   const [passwordRepeat, setPasswordRepeat] = useState("");
   const [passwordSaving, setPasswordSaving] = useState(false);
@@ -91,7 +94,7 @@ export default function MyProfilePage() {
       }
       const { data, error } = await supabase
         .from("profiles")
-        .select("id,full_name,display_username,usual_specialty,availability,avatar_url,user_roles ( roles ( name ) )")
+        .select("id,full_name,display_username,usual_specialty,availability,avatar_url,theme,user_roles ( roles ( name ) )")
         .eq("id", user.id)
         .single();
       if (cancelled) return;
@@ -107,6 +110,7 @@ export default function MyProfilePage() {
       setUsername(data.display_username ?? "");
       setSpecialty(data.usual_specialty ?? "");
       setAvailability(data.availability ?? "AVAILABLE");
+      setTheme(data.theme ?? "dark");
     }
     void load();
     return () => { cancelled = true; };
@@ -187,6 +191,22 @@ export default function MyProfilePage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // Apariencia: se aplica en el momento y se guarda en tu perfil (vale en cualquier dispositivo).
+  async function changeTheme(next: string) {
+    const previous = theme;
+    setTheme(next);
+    setThemeError("");
+    document.documentElement.dataset.theme = next;
+    const { error } = await supabase.rpc("set_my_theme", { p_theme: next });
+    if (error) {
+      setTheme(previous);
+      document.documentElement.dataset.theme = previous;
+      setThemeError("No se pudo guardar la apariencia. Intentá de nuevo.");
+      return;
+    }
+    router.refresh();
   }
 
   async function handlePassword(e: React.FormEvent<HTMLFormElement>) {
@@ -330,6 +350,39 @@ export default function MyProfilePage() {
             </button>
           </div>
         </form>
+
+        <section className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-[#0B0F12]">
+          <div className="border-b border-white/10 px-6 py-4">
+            <h2 className="text-sm font-semibold">Apariencia</h2>
+            <p className="mt-1 text-xs text-zinc-600">Cómo querés ver la plataforma. Se guarda en tu perfil.</p>
+          </div>
+          <div className="grid gap-3 p-6 sm:grid-cols-3">
+            {[
+              { value: "dark", label: "Oscuro", icon: <Moon size={16} /> },
+              { value: "light", label: "Claro", icon: <Sun size={16} /> },
+              { value: "system", label: "Automático", icon: <Monitor size={16} />, hint: "Según tu compu o celular" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => changeTheme(option.value)}
+                aria-pressed={theme === option.value}
+                className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition ${
+                  theme === option.value
+                    ? "border-[#20A4DD]/50 bg-[#20A4DD]/10 text-[#45B8E8]"
+                    : "border-white/10 text-zinc-300 hover:bg-white/5"
+                }`}
+              >
+                {option.icon}
+                <span>
+                  <span className="block">{option.label}</span>
+                  {option.hint && <span className="block text-xs text-zinc-500">{option.hint}</span>}
+                </span>
+              </button>
+            ))}
+            {themeError && <p role="alert" className="text-sm text-red-300 sm:col-span-3">{themeError}</p>}
+          </div>
+        </section>
 
         <form onSubmit={handlePassword} className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-[#0B0F12]">
           <div className="border-b border-white/10 px-6 py-4">

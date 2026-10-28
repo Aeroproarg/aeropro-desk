@@ -49,16 +49,22 @@ async function loadSession() {
   if (!user) return null;
 
   const [profileResult, { data: userRoles }, { data: canViewActivity }] = await Promise.all([
-    supabase.from("profiles").select("full_name,status,avatar_url").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name,status,avatar_url,theme").eq("id", user.id).maybeSingle(),
     supabase.from("user_roles").select("roles ( name )").eq("user_id", user.id),
     supabase.rpc("can_view_activity"),
   ]);
 
   // Si "Mi perfil" todavía no está activado en la base (sin columna de foto), se lee sin la foto.
-  let profile: { full_name: string; status: string; avatar_url?: string | null } | null = profileResult.data;
+  // Si alguna actualización de la base todavía no está activada, se lee el perfil con menos columnas.
+  let profile: { full_name: string; status: string; avatar_url?: string | null; theme?: string | null } | null =
+    profileResult.data;
   if (profileResult.error) {
-    const { data } = await supabase.from("profiles").select("full_name,status").eq("id", user.id).maybeSingle();
+    const { data, error } = await supabase.from("profiles").select("full_name,status,avatar_url").eq("id", user.id).maybeSingle();
     profile = data;
+    if (error) {
+      const { data: basic } = await supabase.from("profiles").select("full_name,status").eq("id", user.id).maybeSingle();
+      profile = basic;
+    }
   }
 
   const roleNames: string[] =
@@ -67,7 +73,9 @@ async function loadSession() {
   const userName = profile?.full_name ?? user.email ?? "Usuario";
   const links = canViewActivity === true ? [...NAV_LINKS, { label: "Actividad", href: "/actividad" }] : NAV_LINKS;
 
-  return { links, userName, roleLabel, avatarUrl: profile?.avatar_url ?? null, inactive: profile?.status === "INACTIVE" };
+  const theme = profile?.theme === "light" || profile?.theme === "system" ? profile.theme : "dark";
+
+  return { links, userName, roleLabel, avatarUrl: profile?.avatar_url ?? null, theme, inactive: profile?.status === "INACTIVE" };
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
@@ -93,6 +101,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es-AR"
+      data-theme={session?.theme ?? "dark"}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#050607]">
