@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+import { RelatedSection } from "@/app/related-records";
+import { jobRows, loadJobRelations, requestRows } from "@/utils/related";
 
 import {
   ArrowLeft,
@@ -75,6 +77,23 @@ export default async function ProjectDetailPage({
   const categoryName = Array.isArray(project.project_categories)
     ? project.project_categories[0]?.name
     : (project.project_categories as { name?: string } | null)?.name;
+
+  // Registros relacionados: trabajos y solicitudes del proyecto; piezas y producciones de esos trabajos.
+  const [jobsResult, requestsResult] = await Promise.all([
+    supabase
+      .from("jobs")
+      .select("id,name,status,general_deadline,project_id,profiles:responsible_user_id ( full_name )")
+      .eq("project_id", id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("requests")
+      .select("id,title,status,created_at")
+      .eq("project_id", id)
+      .order("created_at", { ascending: false }),
+  ]);
+  const jobs = jobsResult.data ?? [];
+  const related = await loadJobRelations(supabase, jobs);
+  const relatedError = Boolean(jobsResult.error || requestsResult.error || related.error);
 
   const statusLabel =
     project.status === "ACTIVE"
@@ -266,33 +285,46 @@ export default async function ProjectDetailPage({
           </div>
         </section>
 
-        <section className="mt-6">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <ModuleCard
-              title="Trabajos"
-              text="Trabajos vinculados al proyecto."
-              icon={<BriefcaseBusiness size={18} />}
-            />
+        {relatedError && (
+          <p className="mt-6 rounded-lg border border-red-900/40 bg-red-950/20 px-4 py-3 text-sm text-red-300">
+            Parte de la información relacionada no se pudo cargar. Refrescá la página.
+          </p>
+        )}
 
-            <ModuleCard
-              title="Solicitudes"
-              text="Pedidos y oportunidades del cliente."
-              icon={<Building2 size={18} />}
-            />
+        <div className="mt-6 grid gap-6 xl:grid-cols-2">
+          <RelatedSection
+            title="Trabajos"
+            description="Trabajos de este proyecto. Los terminados aparecen al final."
+            icon={<BriefcaseBusiness size={18} />}
+            rows={jobRows(jobs)}
+            emptyText="Todavía no hay trabajos en este proyecto."
+            action={{ href: `/trabajos/nuevo?proyecto=${project.id}`, label: "Nuevo Trabajo" }}
+          />
 
-            <ModuleCard
-              title="Producciones"
-              text="Rodajes y jornadas relacionadas."
-              icon={<FolderKanban size={18} />}
-            />
+          <RelatedSection
+            title="Piezas"
+            description="Entregables de los trabajos del proyecto."
+            icon={<ExternalLink size={18} />}
+            rows={related.pieceRows}
+            emptyText="Los trabajos de este proyecto todavía no tienen piezas."
+          />
 
-            <ModuleCard
-              title="Entregables"
-              text="Piezas y entregas del proyecto."
-              icon={<ExternalLink size={18} />}
-            />
-          </div>
-        </section>
+          <RelatedSection
+            title="Producciones"
+            description="Rodajes y jornadas vinculados a los trabajos del proyecto."
+            icon={<FolderKanban size={18} />}
+            rows={related.productionRows}
+            emptyText="No hay producciones vinculadas a estos trabajos."
+          />
+
+          <RelatedSection
+            title="Solicitudes"
+            description="Pedidos asociados a este proyecto."
+            icon={<Building2 size={18} />}
+            rows={requestRows(requestsResult.data ?? [])}
+            emptyText="No hay solicitudes asociadas a este proyecto."
+          />
+        </div>
       </div>
     </main>
   );
@@ -313,32 +345,6 @@ function InfoRow({
 
       <p className="text-sm text-zinc-300">
         {value}
-      </p>
-    </div>
-  );
-}
-
-function ModuleCard({
-  title,
-  text,
-  icon,
-}: {
-  title: string;
-  text: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-dashed border-white/10 p-5">
-      <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.03] text-zinc-600">
-        {icon}
-      </div>
-
-      <p className="text-sm font-medium text-zinc-300">
-        {title}
-      </p>
-
-      <p className="mt-1 text-xs leading-5 text-zinc-600">
-        {text}
       </p>
     </div>
   );

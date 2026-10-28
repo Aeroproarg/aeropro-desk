@@ -1,14 +1,21 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+import { RelatedSection } from "@/app/related-records";
+import { jobRows, loadJobRelations, requestRows } from "@/utils/related";
+import { CLOSED_STATUSES, statusLabel } from "@/utils/status-labels";
 
 import {
   ArrowLeft,
   Building2,
   ExternalLink,
+  BriefcaseBusiness,
+  ClipboardList,
   FolderKanban,
+  PackageCheck,
   Pencil,
   UserRound,
+  Video,
 } from "lucide-react";
 
 type ClientPageProps = {
@@ -59,6 +66,42 @@ const responsible = Array.isArray(client.profiles)
   : (client.profiles as { full_name?: string } | null)?.full_name;
 
   const active = client.status === "ACTIVE";
+
+  // Registros relacionados: proyectos y solicitudes del cliente; trabajos de esos proyectos, sus piezas y producciones.
+  const [projectsResult, requestsResult] = await Promise.all([
+    supabase
+      .from("projects")
+      .select("id,name,status,brief_description")
+      .eq("client_id", id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("requests")
+      .select("id,title,status,created_at")
+      .eq("client_id", id)
+      .order("created_at", { ascending: false }),
+  ]);
+  const projects = projectsResult.data ?? [];
+  const projectNames = new Map(projects.map((project) => [project.id as string, project.name as string]));
+  const jobsResult = projects.length
+    ? await supabase
+        .from("jobs")
+        .select("id,name,status,general_deadline,project_id,profiles:responsible_user_id ( full_name )")
+        .in("project_id", projects.map((project) => project.id))
+        .order("created_at", { ascending: false })
+    : { data: [], error: null };
+  const jobs = jobsResult.data ?? [];
+  const related = await loadJobRelations(supabase, jobs);
+  const relatedError = Boolean(projectsResult.error || requestsResult.error || jobsResult.error || related.error);
+  const projectRows = projects
+    .map((project) => ({
+      key: project.id,
+      href: `/proyectos/${project.id}`,
+      title: project.name,
+      subtitle: project.brief_description ?? undefined,
+      status: statusLabel("project", project.status),
+      closed: CLOSED_STATUSES.project.includes(project.status),
+    }))
+    .sort((a, b) => Number(a.closed) - Number(b.closed));
 
   return (
     <main className="min-h-screen bg-[#050607] text-white">
@@ -214,24 +257,54 @@ const responsible = Array.isArray(client.profiles)
           </div>
         </section>
 
-        <section className="mt-6 rounded-xl border border-dashed border-white/10 p-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.03] text-zinc-600">
-              <FolderKanban size={18} />
-            </div>
+        {relatedError && (
+          <p className="mt-6 rounded-lg border border-red-900/40 bg-red-950/20 px-4 py-3 text-sm text-red-300">
+            Parte de la información relacionada no se pudo cargar. Refrescá la página.
+          </p>
+        )}
 
-            <div>
-              <p className="text-sm font-medium text-zinc-300">
-                Proyectos del cliente
-              </p>
+        <div className="mt-6 grid gap-6 xl:grid-cols-2">
+          <RelatedSection
+            title="Proyectos"
+            description="Proyectos de este cliente."
+            icon={<FolderKanban size={18} />}
+            rows={projectRows}
+            emptyText="Este cliente todavía no tiene proyectos."
+            action={{ href: "/proyectos/nuevo", label: "Nuevo proyecto" }}
+          />
 
-              <p className="mt-1 text-xs leading-5 text-zinc-600">
-                En el próximo módulo vamos a mostrar acá todos los proyectos,
-                trabajos y actividad relacionados con este cliente.
-              </p>
-            </div>
-          </div>
-        </section>
+          <RelatedSection
+            title="Trabajos"
+            description="Trabajos de todos sus proyectos."
+            icon={<BriefcaseBusiness size={18} />}
+            rows={jobRows(jobs, projectNames)}
+            emptyText="Todavía no hay trabajos para este cliente."
+          />
+
+          <RelatedSection
+            title="Piezas"
+            description="Entregables de sus trabajos. Las cerradas aparecen al final."
+            icon={<PackageCheck size={18} />}
+            rows={related.pieceRows}
+            emptyText="Todavía no hay piezas para este cliente."
+          />
+
+          <RelatedSection
+            title="Producciones"
+            description="Rodajes y jornadas vinculados a sus trabajos."
+            icon={<Video size={18} />}
+            rows={related.productionRows}
+            emptyText="No hay producciones vinculadas a este cliente."
+          />
+
+          <RelatedSection
+            title="Solicitudes"
+            description="Pedidos y oportunidades del cliente."
+            icon={<ClipboardList size={18} />}
+            rows={requestRows(requestsResult.data ?? [])}
+            emptyText="No hay solicitudes de este cliente."
+          />
+        </div>
       </div>
     </main>
   );
