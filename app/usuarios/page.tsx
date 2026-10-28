@@ -1,6 +1,7 @@
 import { NoSearchResults, SearchBox, SearchSummary } from "@/app/search-box";
 import { matchesSearch, readSearchQuery } from "@/utils/search";
 import { Fragment } from "react";
+import Avatar from "@/app/avatar";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
@@ -34,6 +35,7 @@ export default async function UsersPage({
       id,
       full_name,
       display_username,
+      avatar_url,
       status,
       usual_specialty,
       availability,
@@ -176,7 +178,9 @@ export default async function UsersPage({
                       className={`grid grid-cols-[1.4fr_1fr_1fr_0.8fr_1fr] items-center border-b border-white/5 px-5 py-4 text-sm last:border-b-0 hover:bg-white/[0.02] ${active ? "" : "opacity-50"}`}
                     >
 
-                      <div>
+                      <div className="flex items-center gap-3">
+                        <Avatar name={profile.full_name} url={profile.avatar_url} size={36} />
+                        <div>
                         <Link
                           href={`/usuarios/${profile.id}`}
                           className="font-medium text-zinc-100 transition hover:text-[#45B8E8]"
@@ -189,6 +193,7 @@ export default async function UsersPage({
                             @{profile.display_username}
                           </p>
                         )}
+                        </div>
                       </div>
 
                       <div className="flex flex-wrap gap-1.5">

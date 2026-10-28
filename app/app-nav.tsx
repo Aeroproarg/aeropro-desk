@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { Menu } from "lucide-react";
 import LogoutButton from "./logout-button";
+import Avatar from "./avatar";
 
 // Barra fija común a toda la plataforma: el logo y "Inicio" llevan siempre al Dashboard.
 
@@ -18,12 +19,12 @@ export default function AppNav({
   links,
   userName,
   roleLabel,
-  initials,
+  avatarUrl,
 }: {
   links: NavLink[];
   userName: string;
   roleLabel: string;
-  initials: string;
+  avatarUrl: string | null;
 }) {
   const pathname = usePathname();
   const mobileMenu = useRef<HTMLDetailsElement>(null);
@@ -59,15 +60,19 @@ export default function AppNav({
         </nav>
 
         <div className="ml-auto flex items-center gap-2 lg:ml-0">
-          <div className="hidden items-center gap-2 sm:flex">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#20A4DD]/15 text-xs font-semibold text-[#45B8E8]">
-              {initials}
-            </div>
+          <Link
+            href="/perfil"
+            title="Mi perfil"
+            className={`hidden items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-white/5 sm:flex ${
+              isActive(pathname, "/perfil") ? "bg-[#20A4DD]/10" : ""
+            }`}
+          >
+            <Avatar name={userName} url={avatarUrl} size={32} />
             <div className="hidden leading-tight xl:block">
               <p className="text-sm font-medium">{userName}</p>
               <p className="text-[11px] text-zinc-600">{roleLabel}</p>
             </div>
-          </div>
+          </Link>
           <div className="hidden lg:block">
             <LogoutButton compact />
           </div>
@@ -86,6 +91,9 @@ export default function AppNav({
                 </Link>
               ))}
               <div className="mt-2 border-t border-white/10 pt-2">
+                <Link href="/perfil" className={`${linkClass("/perfil")} flex items-center gap-2`}>
+                  <Avatar name={userName} url={avatarUrl} size={22} /> Mi perfil
+                </Link>
                 <LogoutButton />
               </div>
             </nav>

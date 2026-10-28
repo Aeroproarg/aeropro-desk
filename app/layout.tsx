@@ -48,25 +48,26 @@ async function loadSession() {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const [{ data: profile }, { data: userRoles }, { data: canViewActivity }] = await Promise.all([
-    supabase.from("profiles").select("full_name,status").eq("id", user.id).maybeSingle(),
+  const [profileResult, { data: userRoles }, { data: canViewActivity }] = await Promise.all([
+    supabase.from("profiles").select("full_name,status,avatar_url").eq("id", user.id).maybeSingle(),
     supabase.from("user_roles").select("roles ( name )").eq("user_id", user.id),
     supabase.rpc("can_view_activity"),
   ]);
+
+  // Si "Mi perfil" todavía no está activado en la base (sin columna de foto), se lee sin la foto.
+  let profile: { full_name: string; status: string; avatar_url?: string | null } | null = profileResult.data;
+  if (profileResult.error) {
+    const { data } = await supabase.from("profiles").select("full_name,status").eq("id", user.id).maybeSingle();
+    profile = data;
+  }
 
   const roleNames: string[] =
     userRoles?.map((item: any) => item.roles?.name).filter(Boolean) ?? [];
   const roleLabel = ROLE_LABELS.find(([code]) => roleNames.includes(code))?.[1] ?? "Usuario";
   const userName = profile?.full_name ?? user.email ?? "Usuario";
-  const initials = userName
-    .split(" ")
-    .map((word: string) => word[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
   const links = canViewActivity === true ? [...NAV_LINKS, { label: "Actividad", href: "/actividad" }] : NAV_LINKS;
 
-  return { links, userName, roleLabel, initials, inactive: profile?.status === "INACTIVE" };
+  return { links, userName, roleLabel, avatarUrl: profile?.avatar_url ?? null, inactive: profile?.status === "INACTIVE" };
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
@@ -96,7 +97,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col bg-[#050607]">
         {session && (
-          <AppNav links={session.links} userName={session.userName} roleLabel={session.roleLabel} initials={session.initials} />
+          <AppNav links={session.links} userName={session.userName} roleLabel={session.roleLabel} avatarUrl={session.avatarUrl} />
         )}
         {children}
       </body>
