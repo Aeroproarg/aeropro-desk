@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import Logo from "@/app/logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,8 +39,8 @@ export default function LoginPage() {
     <main className="min-h-screen bg-[#050607] text-white flex items-center justify-center px-6">
       <div className="w-full max-w-md">
         <div className="mb-10 text-center">
-          <h1 className="text-4xl font-semibold tracking-tight">
-            Aero<span className="text-[#20A4DD]">Pro</span>
+          <h1 className="flex justify-center">
+            <Logo height={44} />
           </h1>
 
           <p className="mt-2 text-sm font-medium tracking-[0.22em] text-zinc-500">

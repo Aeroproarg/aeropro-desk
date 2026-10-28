@@ -258,3 +258,13 @@ html[data-theme="system"] .hover\:text-\[\#45B8E8\]:hover,
 html[data-theme="system"] .text-\[\#20A4DD\] { color: #0b78ad; }
 html[data-theme="system"] .shadow-2xl { box-shadow: 0 20px 40px -12px rgb(0 0 0 / 0.18); }
 }
+
+/* Logo: versión blanca en modo oscuro, versión negra en modo claro. */
+.logo-on-dark { display: block; }
+.logo-on-light { display: none; }
+html[data-theme="light"] .logo-on-dark { display: none; }
+html[data-theme="light"] .logo-on-light { display: block; }
+@media (prefers-color-scheme: light) {
+  html[data-theme="system"] .logo-on-dark { display: none; }
+  html[data-theme="system"] .logo-on-light { display: block; }
+}

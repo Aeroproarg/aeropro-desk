@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { Menu, Search } from "lucide-react";
 import LogoutButton from "./logout-button";
 import Avatar from "./avatar";
+import Logo from "./logo";
 
 // Barra fija común a toda la plataforma: el logo y "Inicio" llevan siempre al Dashboard.
 
@@ -44,11 +45,9 @@ export default function AppNav({
   return (
     <header className="sticky top-0 z-30 border-b border-white/10 bg-[#080A0C]/95 text-white backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-4 px-5 md:px-8">
-        <Link href="/" className="shrink-0" aria-label="Ir al inicio (Dashboard)">
-          <span className="text-lg font-semibold tracking-tight">
-            Aero<span className="text-[#20A4DD]">Pro</span>
-          </span>
-          <span className="ml-1.5 text-[9px] font-medium tracking-[0.28em] text-zinc-500">DESK</span>
+        <Link href="/" className="flex shrink-0 items-center" aria-label="Ir al inicio (Dashboard)">
+          <Logo height={20} />
+          <span className="ml-2 text-[9px] font-medium tracking-[0.28em] text-zinc-500">DESK</span>
         </Link>
 
         <nav className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto lg:flex" aria-label="Secciones">
