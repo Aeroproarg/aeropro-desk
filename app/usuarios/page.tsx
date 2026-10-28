@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/server";
 
 import {
   ArrowLeft,
+  History,
   Plus,
   UserCog,
 } from "lucide-react";
@@ -86,6 +87,14 @@ export default async function UsersPage({
               placeholder="Buscar usuario..."
               label="Buscar usuario por nombre, usuario, especialidad o rol"
             />
+
+            <Link
+              href="/actividad"
+              className="flex h-10 items-center justify-center gap-2 rounded-lg border border-white/10 bg-[#0B0F12] px-4 text-sm text-zinc-300 transition hover:bg-white/5 hover:text-white"
+            >
+              <History size={17} />
+              Actividad
+            </Link>
 
             <Link
               href="/usuarios/nuevo"
