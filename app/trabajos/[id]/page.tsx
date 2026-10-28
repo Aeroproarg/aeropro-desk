@@ -2,6 +2,7 @@ import { displayTimeZone } from "@/utils/dates";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+import ActivityLink from "@/app/activity-link";
 
 import {
   ArrowLeft,
@@ -350,13 +351,17 @@ export default async function JobDetailPage({
 
           </div>
 
-          <Link
-            href={`/trabajos/${job.id}/editar`}
-            className="flex h-10 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-4 text-sm font-medium text-zinc-300 transition hover:border-white/20 hover:bg-white/[0.06] hover:text-white"
-          >
-            <Pencil size={16} />
-            Editar Trabajo
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <ActivityLink kind="trabajo" id={job.id} />
+
+            <Link
+              href={`/trabajos/${job.id}/editar`}
+              className="flex h-10 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-4 text-sm font-medium text-zinc-300 transition hover:border-white/20 hover:bg-white/[0.06] hover:text-white"
+            >
+              <Pencil size={16} />
+              Editar Trabajo
+            </Link>
+          </div>
         </div>
 
         {/* RESUMEN SUPERIOR */}

@@ -19,6 +19,12 @@
   }
 }
 
+/* Toda la plataforma es oscura: los controles del navegador (calendarios de fecha,
+   listas desplegables, barras de desplazamiento) se dibujan en modo oscuro y se ven. */
+html {
+  color-scheme: dark;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

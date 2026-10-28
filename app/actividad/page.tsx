@@ -21,7 +21,7 @@ type ActivityRow = {
   created_at: string;
 };
 
-type Filters = { persona?: string; tipo?: string; desde?: string; hasta?: string; limite?: string };
+type Filters = { persona?: string; tipo?: string; desde?: string; hasta?: string; limite?: string; trabajo?: string; produccion?: string };
 
 const ENTITY_LABELS: Record<string, string> = {
   clients: "Cliente", projects: "Proyecto", requests: "Solicitud", request_followups: "Seguimiento de solicitud",
@@ -143,6 +143,8 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   const desde = filters.desde && DAY.test(filters.desde) ? filters.desde : "";
   const hasta = filters.hasta && DAY.test(filters.hasta) ? filters.hasta : "";
   const limite = Math.min(Math.max(Number(filters.limite) || 100, 100), 1000);
+  const trabajo = filters.trabajo && UUID.test(filters.trabajo) ? filters.trabajo : "";
+  const produccion = !trabajo && filters.produccion && UUID.test(filters.produccion) ? filters.produccion : "";
 
   const { data: allowed, error: permissionError } = await supabase.rpc("can_view_activity");
 
@@ -178,10 +180,42 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
     );
   }
 
+  // Actividad de un trabajo o producción: el registro y todo lo que se le relaciona.
+  let scopeFilter = "";
+  let scopeTitle = "";
+  let scopeHref = "";
+  if (trabajo) {
+    const [{ data: job }, { data: pieces }] = await Promise.all([
+      supabase.from("jobs").select("name").eq("id", trabajo).maybeSingle(),
+      supabase.from("deliverables").select("id").eq("job_id", trabajo),
+    ]);
+    const pieceIds = (pieces ?? []).map((piece) => piece.id as string);
+    scopeFilter = [
+      `entity_id.eq.${trabajo}`,
+      `context->>job_id.eq.${trabajo}`,
+      ...(pieceIds.length ? [`entity_id.in.(${pieceIds.join(",")})`, `context->>deliverable_id.in.(${pieceIds.join(",")})`] : []),
+    ].join(",");
+    scopeTitle = `Trabajo: ${job?.name ?? "(ya no existe)"}`;
+    scopeHref = `/trabajos/${trabajo}`;
+  } else if (produccion) {
+    const [{ data: production }, { data: plan }] = await Promise.all([
+      supabase.from("productions").select("name").eq("id", produccion).maybeSingle(),
+      supabase.from("nas_folder_plans").select("id").eq("production_id", produccion).maybeSingle(),
+    ]);
+    scopeFilter = [
+      `entity_id.eq.${produccion}`,
+      `context->>production_id.eq.${produccion}`,
+      ...(plan?.id ? [`entity_id.eq.${plan.id}`, `context->>plan_id.eq.${plan.id}`] : []),
+    ].join(",");
+    scopeTitle = `Producción: ${production?.name ?? "(ya no existe)"}`;
+    scopeHref = `/producciones/${produccion}`;
+  }
+
   let query = supabase.from("activity_history")
     .select("id,entity_type,entity_id,action,description,performed_by_user_id,performed_by_name,changes,context,is_automatic,created_at")
     .order("created_at", { ascending: false })
     .limit(limite + 1);
+  if (scopeFilter) query = query.or(scopeFilter);
   if (persona) query = query.eq("performed_by_user_id", persona);
   if (tipo) query = query.eq("entity_type", tipo);
   // Argentina usa UTC-3 todo el año.
@@ -200,8 +234,8 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   const rows = ((data ?? []) as ActivityRow[]);
   const hasMore = rows.length > limite;
   const visible = rows.slice(0, limite);
-  const moreParams = new URLSearchParams({ ...(persona && { persona }), ...(tipo && { tipo }), ...(desde && { desde }), ...(hasta && { hasta }), limite: String(limite + 100) });
-  const filtering = Boolean(persona || tipo || desde || hasta);
+  const moreParams = new URLSearchParams({ ...(persona && { persona }), ...(tipo && { tipo }), ...(desde && { desde }), ...(hasta && { hasta }), ...(trabajo && { trabajo }), ...(produccion && { produccion }), limite: String(limite + 100) });
+  const filtering = Boolean(persona || tipo || desde || hasta || trabajo || produccion);
   const fieldClass = "h-10 rounded-lg border border-white/10 bg-[#0B0F12] px-3 text-sm text-white focus:border-[#20A4DD]/50 focus:outline-none";
 
   return (
@@ -209,7 +243,17 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
       <div className="mx-auto max-w-[1600px] px-5 py-8 md:px-8">
         {header}
 
+        {scopeTitle && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-[#20A4DD]/20 bg-[#20A4DD]/[0.05] px-4 py-3 text-sm">
+            <span className="text-zinc-400">Mostrando solo:</span>
+            <Link href={scopeHref} className="font-medium text-zinc-100 hover:text-[#45B8E8]">{scopeTitle}</Link>
+            <Link href="/actividad" className="ml-auto text-xs text-[#45B8E8] hover:underline">Ver toda la actividad</Link>
+          </div>
+        )}
+
         <Form action="/actividad" className="mb-6 flex flex-wrap items-end gap-3">
+          {trabajo && <input type="hidden" name="trabajo" value={trabajo} />}
+          {produccion && <input type="hidden" name="produccion" value={produccion} />}
           <label className="flex flex-col gap-1 text-xs text-zinc-500">
             Persona
             <select name="persona" defaultValue={persona} className={fieldClass}>

@@ -7,6 +7,7 @@ import {
 
 import ProductionManagementLink from "./production-management-link";
 import NasDownloadSummary from "./nas-download-summary";
+import ActivityLink from "@/app/activity-link";
 
 import {
   AlertTriangle,
@@ -382,6 +383,8 @@ export default async function ProductionDetailPage({
               </div>
 
             </div>
+
+            <ActivityLink kind="produccion" id={production.id} />
 
             <Link
               href={`/producciones/${production.id}/editar`}
