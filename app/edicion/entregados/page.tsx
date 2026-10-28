@@ -1,3 +1,4 @@
+import { displayTimeZone } from "@/utils/dates";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
@@ -564,6 +565,7 @@ function formatDate(
   ).toLocaleDateString(
     "es-AR",
     {
+      timeZone: displayTimeZone(value),
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -579,6 +581,7 @@ function formatTime(
   ).toLocaleTimeString(
     "es-AR",
     {
+      timeZone: displayTimeZone(value),
       hour: "2-digit",
       minute: "2-digit",
     }

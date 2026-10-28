@@ -1,5 +1,6 @@
 "use client";
 
+import { displayTimeZone } from "@/utils/dates";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -496,6 +497,7 @@ function formatProductionLabel(
         ).toLocaleDateString(
           "es-AR",
           {
+            timeZone: displayTimeZone(production.start_at),
             day: "2-digit",
             month: "2-digit",
             year: "numeric",

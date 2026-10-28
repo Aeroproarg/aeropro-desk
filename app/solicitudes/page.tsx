@@ -1,3 +1,4 @@
+import { displayTimeZone } from "@/utils/dates";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
@@ -167,9 +168,7 @@ export default async function RequestsPage() {
                         {request.next_followup_at && (
                           <p className="mt-1 text-xs text-zinc-600">
                             Próximo seguimiento:{" "}
-                            {new Date(
-                              request.next_followup_at
-                            ).toLocaleDateString("es-AR")}
+                            {new Date(request.next_followup_at).toLocaleDateString("es-AR", { timeZone: displayTimeZone(request.next_followup_at) })}
                           </p>
                         )}
                       </div>

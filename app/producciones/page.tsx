@@ -1,3 +1,4 @@
+import { displayTimeZone } from "@/utils/dates";
 import Form from "next/form";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -1467,6 +1468,7 @@ function formatDateTime(
   ).toLocaleString(
     "es-AR",
     {
+      timeZone: displayTimeZone(value),
       day:
         "2-digit",
       month:

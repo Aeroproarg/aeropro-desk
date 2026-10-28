@@ -1,5 +1,6 @@
 "use client";
 
+import { displayTimeZone } from "@/utils/dates";
 import Link from "next/link";
 import {
   useEffect,
@@ -1900,6 +1901,7 @@ function formatDateTime(
   ).toLocaleString(
     "es-AR",
     {
+      timeZone: displayTimeZone(value),
       day:
         "2-digit",
       month:

@@ -1,3 +1,4 @@
+import { displayTimeZone } from "@/utils/dates";
 import Link from "next/link";
 import {
   notFound,
@@ -1717,6 +1718,7 @@ function formatDateTime(
   ).toLocaleString(
     "es-AR",
     {
+      timeZone: displayTimeZone(value),
       day:
         "2-digit",
       month:
