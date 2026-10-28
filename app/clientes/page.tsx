@@ -1,3 +1,5 @@
+import { NoSearchResults, SearchBox, SearchSummary } from "@/app/search-box";
+import { matchesSearch, readSearchQuery } from "@/utils/search";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
@@ -6,11 +8,15 @@ import {
   ArrowLeft,
   ExternalLink,
   Plus,
-  Search,
   Users,
 } from "lucide-react";
 
-export default async function ClientsPage() {
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[] }>;
+}) {
+  const query = await readSearchQuery(searchParams);
   const supabase = await createClient();
 
   const {
@@ -35,6 +41,10 @@ export default async function ClientsPage() {
       )
     `)
     .order("name", { ascending: true });
+
+  const visibleClients = (clients ?? []).filter((item) =>
+    matchesSearch(query, [item.name, item.notes, item.profiles])
+  );
 
   return (
     <main className="min-h-screen bg-[#050607] text-white">
@@ -67,10 +77,12 @@ export default async function ClientsPage() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-[#0B0F12] px-3 text-sm text-zinc-500">
-              <Search size={17} />
-              <span>Buscar cliente...</span>
-            </div>
+            <SearchBox
+              action="/clientes"
+              query={query}
+              placeholder="Buscar cliente..."
+              label="Buscar cliente por nombre, notas o responsable"
+            />
 
             <Link
               href="/clientes/nuevo"
@@ -81,6 +93,10 @@ export default async function ClientsPage() {
             </Link>
           </div>
         </div>
+
+        {!error && (
+          <SearchSummary query={query} count={visibleClients.length} singular="cliente" plural="clientes" clearHref="/clientes" />
+        )}
 
         {error ? (
           <div className="rounded-xl border border-red-900/40 bg-red-950/20 p-5 text-sm text-red-300">
@@ -96,7 +112,9 @@ export default async function ClientsPage() {
               <div className="text-right">Acciones</div>
             </div>
 
-            {!clients || clients.length === 0 ? (
+            {query && visibleClients.length === 0 ? (
+              <NoSearchResults query={query} />
+            ) : visibleClients.length === 0 ? (
               <div className="flex min-h-[320px] flex-col items-center justify-center px-6 text-center">
                 <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.03] text-zinc-600">
                   <Users size={20} />
@@ -121,7 +139,7 @@ export default async function ClientsPage() {
               </div>
             ) : (
               <div>
-                {clients.map((client: any) => {
+                {visibleClients.map((client: any) => {
                   const responsible =
                     client.profiles?.full_name ?? "Sin responsable";
 

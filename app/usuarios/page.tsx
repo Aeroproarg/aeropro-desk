@@ -1,3 +1,5 @@
+import { NoSearchResults, SearchBox, SearchSummary } from "@/app/search-box";
+import { matchesSearch, readSearchQuery } from "@/utils/search";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
@@ -5,11 +7,15 @@ import { createClient } from "@/utils/supabase/server";
 import {
   ArrowLeft,
   Plus,
-  Search,
   UserCog,
 } from "lucide-react";
 
-export default async function UsersPage() {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[] }>;
+}) {
+  const query = await readSearchQuery(searchParams);
   const supabase = await createClient();
 
   const {
@@ -36,6 +42,10 @@ export default async function UsersPage() {
       )
     `)
     .order("full_name", { ascending: true });
+
+  const visibleProfiles = (profiles ?? []).filter((item) =>
+    matchesSearch(query, [item.full_name, item.display_username, item.usual_specialty, item.user_roles])
+  );
 
   return (
     <main className="min-h-screen bg-[#050607] text-white">
@@ -70,10 +80,12 @@ export default async function UsersPage() {
 
           <div className="flex flex-col gap-3 sm:flex-row">
 
-            <div className="flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-[#0B0F12] px-3 text-sm text-zinc-500">
-              <Search size={17} />
-              Buscar usuario...
-            </div>
+            <SearchBox
+              action="/usuarios"
+              query={query}
+              placeholder="Buscar usuario..."
+              label="Buscar usuario por nombre, usuario, especialidad o rol"
+            />
 
             <Link
               href="/usuarios/nuevo"
@@ -85,6 +97,10 @@ export default async function UsersPage() {
 
           </div>
         </div>
+
+        {!error && (
+          <SearchSummary query={query} count={visibleProfiles.length} singular="usuario" plural="usuarios" clearHref="/usuarios" />
+        )}
 
         {error ? (
           <div className="rounded-xl border border-red-900/40 bg-red-950/20 p-5 text-sm text-red-300">
@@ -101,7 +117,9 @@ export default async function UsersPage() {
               <div>Disponibilidad</div>
             </div>
 
-            {!profiles || profiles.length === 0 ? (
+            {query && visibleProfiles.length === 0 ? (
+              <NoSearchResults query={query} />
+            ) : visibleProfiles.length === 0 ? (
               <div className="flex min-h-[300px] flex-col items-center justify-center text-center">
 
                 <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.03] text-zinc-600">
@@ -119,7 +137,7 @@ export default async function UsersPage() {
               </div>
             ) : (
               <div>
-                {profiles.map((profile: any) => {
+                {visibleProfiles.map((profile: any) => {
 
                   const roleNames =
                     profile.user_roles

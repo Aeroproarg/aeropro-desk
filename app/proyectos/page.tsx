@@ -1,3 +1,5 @@
+import { NoSearchResults, SearchBox, SearchSummary } from "@/app/search-box";
+import { matchesSearch, readSearchQuery } from "@/utils/search";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
@@ -6,10 +8,14 @@ import {
   ArrowLeft,
   FolderKanban,
   Plus,
-  Search,
 } from "lucide-react";
 
-export default async function ProjectsPage() {
+export default async function ProjectsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[] }>;
+}) {
+  const query = await readSearchQuery(searchParams);
   const supabase = await createClient();
 
   const {
@@ -40,6 +46,10 @@ export default async function ProjectsPage() {
       )
     `)
     .order("created_at", { ascending: false });
+
+  const visibleProjects = (projects ?? []).filter((item) =>
+    matchesSearch(query, [item.name, item.brief_description, item.clients, item.project_categories, item.profiles])
+  );
 
   return (
     <main className="min-h-screen bg-[#050607] text-white">
@@ -72,10 +82,12 @@ export default async function ProjectsPage() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-[#0B0F12] px-3 text-sm text-zinc-500">
-              <Search size={17} />
-              Buscar proyecto...
-            </div>
+            <SearchBox
+              action="/proyectos"
+              query={query}
+              placeholder="Buscar proyecto..."
+              label="Buscar proyecto por nombre, cliente, categoría o responsable"
+            />
 
             <Link
               href="/proyectos/nuevo"
@@ -86,6 +98,10 @@ export default async function ProjectsPage() {
             </Link>
           </div>
         </div>
+
+        {!error && (
+          <SearchSummary query={query} count={visibleProjects.length} singular="proyecto" plural="proyectos" clearHref="/proyectos" />
+        )}
 
         {error ? (
           <div className="rounded-xl border border-red-900/40 bg-red-950/20 p-5 text-sm text-red-300">
@@ -102,7 +118,9 @@ export default async function ProjectsPage() {
               <div className="text-right">Acciones</div>
             </div>
 
-            {!projects || projects.length === 0 ? (
+            {query && visibleProjects.length === 0 ? (
+              <NoSearchResults query={query} />
+            ) : visibleProjects.length === 0 ? (
               <div className="flex min-h-[320px] flex-col items-center justify-center px-6 text-center">
                 <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.03] text-zinc-600">
                   <FolderKanban size={20} />
@@ -127,7 +145,7 @@ export default async function ProjectsPage() {
               </div>
             ) : (
               <div>
-                {projects.map((project: any) => {
+                {visibleProjects.map((project: any) => {
                   const clientName = Array.isArray(project.clients)
                     ? project.clients[0]?.name
                     : project.clients?.name;

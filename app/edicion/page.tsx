@@ -1,3 +1,5 @@
+import { SearchBox, SearchSummary } from "@/app/search-box";
+import { matchesSearch, readSearchQuery } from "@/utils/search";
 import { displayTimeZone } from "@/utils/dates";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -16,7 +18,6 @@ import {
   ListOrdered,
   ListTodo,
   MessageSquareText,
-  Search,
   Send,
   UserRoundPlus,
 } from "lucide-react";
@@ -60,7 +61,12 @@ type PendingFeedback = {
   created_at: string;
 };
 
-export default async function EditingPage() {
+export default async function EditingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[] }>;
+}) {
+  const query = await readSearchQuery(searchParams);
   const supabase =
     await createClient();
 
@@ -219,8 +225,17 @@ export default async function EditingPage() {
     sendsResult.error ||
     feedbackResult.error;
 
+  // El buscador filtra todas las secciones y métricas de la cola.
   const allPieces =
-    piecesResult.data ?? [];
+    (piecesResult.data ?? []).filter((piece) =>
+      matchesSearch(query, [
+        piece.name,
+        piece.jobs,
+        piece.deliverable_groups,
+        piece.editor,
+        piece.responsible,
+      ])
+    );
 
   const profiles =
     (profilesResult.data ??
@@ -436,19 +451,18 @@ export default async function EditingPage() {
               Ver entregados
             </Link>
 
-            <div className="flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-[#0B0F12] px-3 text-sm text-zinc-500">
-
-              <Search
-                size={17}
-              />
-
-              Buscar pieza...
-
-            </div>
+            <SearchBox
+              action="/edicion"
+              query={query}
+              placeholder="Buscar pieza..."
+              label="Buscar pieza por nombre, trabajo, proyecto, cliente o editor"
+            />
 
           </div>
 
         </div>
+
+        <SearchSummary query={query} count={allPieces.length} singular="pieza" plural="piezas" clearHref="/edicion" />
 
         {/* =====================================
             MÉTRICAS

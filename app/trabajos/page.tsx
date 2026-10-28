@@ -1,3 +1,5 @@
+import { NoSearchResults, SearchBox, SearchSummary } from "@/app/search-box";
+import { matchesSearch, readSearchQuery } from "@/utils/search";
 import { displayTimeZone } from "@/utils/dates";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -8,10 +10,14 @@ import {
   BriefcaseBusiness,
   CalendarDays,
   Plus,
-  Search,
 } from "lucide-react";
 
-export default async function JobsPage() {
+export default async function JobsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[] }>;
+}) {
+  const query = await readSearchQuery(searchParams);
   const supabase = await createClient();
 
   const {
@@ -48,6 +54,10 @@ export default async function JobsPage() {
       )
     `)
     .order("created_at", { ascending: false });
+
+  const visibleJobs = (jobs ?? []).filter((item) =>
+    matchesSearch(query, [item.name, item.projects, item.job_categories, item.profiles])
+  );
 
   const jobIds = jobs?.map((job) => job.id) ?? [];
 
@@ -101,10 +111,12 @@ export default async function JobsPage() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-[#0B0F12] px-3 text-sm text-zinc-500">
-              <Search size={17} />
-              Buscar Trabajo...
-            </div>
+            <SearchBox
+              action="/trabajos"
+              query={query}
+              placeholder="Buscar trabajo..."
+              label="Buscar trabajo por nombre, cliente, proyecto, categoría o responsable"
+            />
 
             <Link
               href="/trabajos/nuevo"
@@ -115,6 +127,10 @@ export default async function JobsPage() {
             </Link>
           </div>
         </div>
+
+        {!error && (
+          <SearchSummary query={query} count={visibleJobs.length} singular="trabajo" plural="trabajos" clearHref="/trabajos" />
+        )}
 
         {error ? (
           <div className="rounded-xl border border-red-900/40 bg-red-950/20 p-5 text-sm text-red-300">
@@ -133,7 +149,9 @@ export default async function JobsPage() {
               <div className="text-right">Acciones</div>
             </div>
 
-            {!jobs || jobs.length === 0 ? (
+            {query && visibleJobs.length === 0 ? (
+              <NoSearchResults query={query} />
+            ) : visibleJobs.length === 0 ? (
               <div className="flex min-h-[320px] flex-col items-center justify-center px-6 text-center">
                 <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.03] text-zinc-600">
                   <BriefcaseBusiness size={20} />
@@ -158,7 +176,7 @@ export default async function JobsPage() {
               </div>
             ) : (
               <div>
-                {jobs.map((job) => {
+                {visibleJobs.map((job) => {
                   const projectName = relationValue(
                     job.projects,
                     "name"
