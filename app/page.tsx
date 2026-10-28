@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { ARGENTINA_TIME_ZONE, displayTimeZone } from "@/utils/dates";
 import { folderProgress, type NasEntry } from "@/utils/nas-downloads";
+import { SearchBox } from "@/app/search-box";
 
 import {
   AlertTriangle,
@@ -278,9 +279,12 @@ export default async function Home() {
       <div>
         <section className="min-w-0">
           <div className="border-b border-white/10 px-5 py-5 md:px-8">
-            <div className="mx-auto max-w-[1600px]">
-              <h1 className="text-xl font-semibold tracking-tight">Hola, {(profile?.full_name ?? "").split(" ")[0] || "equipo"}</h1>
-              <p className="mt-1 text-sm text-zinc-500">Resumen operativo de AeroPro · {displayRole}</p>
+            <div className="mx-auto flex max-w-[1600px] flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h1 className="text-xl font-semibold tracking-tight">Hola, {(profile?.full_name ?? "").split(" ")[0] || "equipo"}</h1>
+                <p className="mt-1 text-sm text-zinc-500">Resumen operativo de AeroPro · {displayRole}</p>
+              </div>
+              <SearchBox action="/buscar" query="" placeholder="Buscar en todo..." label="Buscar en toda la plataforma" />
             </div>
           </div>
 

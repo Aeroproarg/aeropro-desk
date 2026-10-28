@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { Menu } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import LogoutButton from "./logout-button";
 import Avatar from "./avatar";
 
@@ -60,6 +60,16 @@ export default function AppNav({
         </nav>
 
         <div className="ml-auto flex items-center gap-2 lg:ml-0">
+          <Link
+            href="/buscar"
+            title="Buscar en toda la plataforma"
+            aria-label="Buscar en toda la plataforma"
+            className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+              isActive(pathname, "/buscar") ? "bg-[#20A4DD]/10 text-[#45B8E8]" : "text-zinc-400 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <Search size={18} />
+          </Link>
           <Link
             href="/perfil"
             title="Mi perfil"

@@ -28,17 +28,22 @@ export default function NasFolderPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Preparar carpetas: Coordinación, Administración, Producción, Responsable de proyecto o responsable/participante.
+  // Un editor con piezas en esta producción ve y confirma descargas, pero no prepara.
+  const [canPrepare, setCanPrepare] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [prod, eq, plan] = await Promise.all([
+      const [prod, eq, plan, permission] = await Promise.all([
         supabase.from("productions").select("name").eq("id", id).single(),
         supabase.from("production_equipment").select("id,item_name,used_by_user_id,used_by:used_by_user_id(id,full_name)")
           .eq("production_id", id).order("created_at"),
         supabase.from("nas_folder_plans").select("id,root_name,state,last_error,entries").eq("production_id", id).maybeSingle(),
+        supabase.rpc("can_prepare_nas", { p_production_id: id }),
       ]);
       if (cancelled) return;
+      if (!permission.error) setCanPrepare(permission.data === true);
       if (prod.error || eq.error || plan.error) {
         setError("No se pudo cargar la preparación de carpetas. Verificá tu sesión y que la actualización de la base esté instalada.");
       } else {
@@ -101,6 +106,11 @@ export default function NasFolderPage() {
           <button type="button" className={button} disabled={busy} onClick={refreshStatus}>Actualizar estado</button>
           <FolderDownloads key={saved.id} plan={saved} disabled={busy} />
         </section>}
+        {!canPrepare && <p className="text-sm text-zinc-400">
+          {saved ? "Podés confirmar descargas y el material acomodado. " : "Todavía no hay carpetas preparadas para esta producción. "}
+          Preparar carpetas lo hace Coordinación, Producción o Responsable de proyecto.
+        </p>}
+        {canPrepare && <>
         <section className="rounded-xl border border-white/10 bg-[#0B0F12] p-5">
           <h2 className="mb-3 font-semibold">Equipos y operadores</h2>
           {!equipment.length && <p className="text-sm text-zinc-400">Todavía no hay equipamiento cargado.</p>}
@@ -122,6 +132,7 @@ export default function NasFolderPage() {
           <p className="text-sm text-zinc-400">{preview.existing ? "Se reutilizará la carpeta de esta producción. Las carpetas existentes conservan su nombre." : "El código se reservará al confirmar. Si otra producción lo ocupa antes, te pediremos actualizar la vista previa."}</p>
           <button type="button" className={button} disabled={busy} onClick={() => prepare(true)}>Confirmar preparación</button>
         </section>}
+        </>}
       </>}
       <p className="text-sm text-amber-200/80">Preparar carpetas no confirma la descarga. Confirmá la copia de cada subcarpeta y, al terminar, dónde quedó acomodado el material en la carpeta del cliente.</p>
     </div>
