@@ -46,6 +46,7 @@ const FIELD_LABELS: Record<string, string> = {
   client_id: "Cliente", preparation_review_at: "Revisión de preparación", nas_material_managed: "Material NAS",
   state: "Estado NAS", entries: "Carpetas", confirmed_by_name: "Confirmó", user_id: "Usuario", role_id: "Rol",
   drive_url: "Drive", next_followup_at: "Próximo seguimiento", filed_path: "Carpeta del cliente",
+  cuenta: "Cuenta", usual_specialty: "Especialidad", availability: "Disponibilidad",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -57,9 +58,15 @@ const STATUS_LABELS: Record<string, string> = {
   PENDING_PLANNING: "Pendiente planificación", PENDING_DATE: "Pendiente fecha", SCHEDULED: "Programada",
   READY: "Lista", COMPLETED: "Completada", NOT_COMPLETED: "No realizada", CANCELLED: "Cancelada",
   PENDING: "Pendiente", RESOLVED: "Resuelto", NEW: "Nueva", CONFIRMED: "Confirmada",
+  AVAILABLE: "Disponible", UNAVAILABLE: "No disponible",
 };
 
 const ACTION_LABELS: Record<string, string> = { INSERT: "creó", UPDATE: "modificó", DELETE: "borró" };
+
+const ROLE_LABELS: Record<string, string> = {
+  RESPONSABLE_PROYECTO: "Responsable de proyecto", COORDINACION: "Coordinación", PRODUCCION: "Producción",
+  ADMINISTRACION: "Administración", EDITOR: "Edición", FREELANCE: "Freelance",
+};
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -99,6 +106,8 @@ function entityHref(row: ActivityRow) {
     case "deliverables": return ctx.job_id ? `/trabajos/${ctx.job_id}/entregables/${row.entity_id}` : null;
     case "nas_folder_plans": return ctx.production_id ? `/producciones/${ctx.production_id}/carpeta-nas` : null;
     case "nas_material_filings": return null;
+    case "profiles": return `/usuarios/${row.entity_id}`;
+    case "user_roles": return `/usuarios/${row.entity_id}`;
     default:
       if (ctx.production_id) return `/producciones/${ctx.production_id}`;
       if (ctx.job_id) return `/trabajos/${ctx.job_id}`;
@@ -179,12 +188,15 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   if (desde) query = query.gte("created_at", `${desde}T00:00:00-03:00`);
   if (hasta) query = query.lt("created_at", `${nextDay(hasta)}T00:00:00-03:00`);
 
-  const [{ data, error }, { data: profiles }] = await Promise.all([
+  const [{ data, error }, { data: profiles }, { data: roleRows }] = await Promise.all([
     query,
     supabase.from("profiles").select("id,full_name").order("full_name", { ascending: true }),
+    supabase.from("roles").select("id,name"),
   ]);
 
+  // Nombres para mostrar ids de personas y de roles.
   const people = new Map((profiles ?? []).map((profile) => [profile.id as string, profile.full_name as string]));
+  for (const role of roleRows ?? []) people.set(role.id as string, ROLE_LABELS[role.name as string] ?? (role.name as string));
   const rows = ((data ?? []) as ActivityRow[]);
   const hasMore = rows.length > limite;
   const visible = rows.slice(0, limite);
@@ -240,7 +252,12 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
           <section className="overflow-hidden rounded-xl border border-white/10 bg-[#0B0F12]">
             {visible.map((row) => {
               const href = entityHref(row);
-              const what = row.description;
+              // Roles: "agregó rol Edición · Persona" / "quitó rol ...".
+              const isRole = row.entity_type === "user_roles";
+              const roleId = isRole ? String((row.changes as Record<string, unknown> | null)?.role_id ?? "") : "";
+              const what = isRole
+                ? `${people.get(roleId) ?? "rol"} · ${people.get(row.entity_id) ?? "usuario"}`
+                : row.description;
               return (
                 <div key={row.id} className="grid gap-1 border-b border-white/5 px-5 py-3 text-sm last:border-b-0 md:grid-cols-[150px_200px_1fr]">
                   <div className="text-xs text-zinc-500 md:text-sm">{dateTime.format(new Date(row.created_at))}</div>
@@ -251,8 +268,10 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
                     )}
                   </div>
                   <div>
-                    <span className="text-zinc-500">{ACTION_LABELS[row.action] ?? row.action} </span>
-                    <span className="text-zinc-400">{(ENTITY_LABELS[row.entity_type] ?? row.entity_type).toLowerCase()}</span>{" "}
+                    <span className="text-zinc-500">
+                      {isRole ? (row.action === "DELETE" ? "quitó" : "agregó") : ACTION_LABELS[row.action] ?? row.action}{" "}
+                    </span>
+                    <span className="text-zinc-400">{isRole ? "rol" : (ENTITY_LABELS[row.entity_type] ?? row.entity_type).toLowerCase()}</span>{" "}
                     {what && (href ? (
                       <Link href={href} className="font-medium text-zinc-100 hover:text-[#45B8E8]">{what}</Link>
                     ) : (

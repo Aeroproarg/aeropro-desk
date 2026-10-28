@@ -1,5 +1,6 @@
 import { NoSearchResults, SearchBox, SearchSummary } from "@/app/search-box";
 import { matchesSearch, readSearchQuery } from "@/utils/search";
+import { Fragment } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
@@ -146,7 +147,10 @@ export default async function UsersPage({
               </div>
             ) : (
               <div>
-                {visibleProfiles.map((profile: any) => {
+                {/* Activos primero; los dados de baja al final, separados y atenuados. */}
+                {[...visibleProfiles]
+                  .sort((a: any, b: any) => Number(a.status !== "ACTIVE") - Number(b.status !== "ACTIVE"))
+                  .map((profile: any, index: number, sorted: any[]) => {
 
                   const roleNames =
                     profile.user_roles
@@ -158,16 +162,27 @@ export default async function UsersPage({
                   const available =
                     profile.availability === "AVAILABLE";
 
+                  const firstInactive =
+                    !active && (index === 0 || sorted[index - 1].status === "ACTIVE");
+
                   return (
+                    <Fragment key={profile.id}>
+                    {firstInactive && (
+                      <div className="border-b border-white/10 bg-white/[0.02] px-5 py-2 text-xs font-medium uppercase tracking-[0.12em] text-zinc-600">
+                        Dados de baja · sin acceso a la plataforma
+                      </div>
+                    )}
                     <div
-                      key={profile.id}
-                      className="grid grid-cols-[1.4fr_1fr_1fr_0.8fr_1fr] items-center border-b border-white/5 px-5 py-4 text-sm last:border-b-0 hover:bg-white/[0.02]"
+                      className={`grid grid-cols-[1.4fr_1fr_1fr_0.8fr_1fr] items-center border-b border-white/5 px-5 py-4 text-sm last:border-b-0 hover:bg-white/[0.02] ${active ? "" : "opacity-50"}`}
                     >
 
                       <div>
-                        <p className="font-medium text-zinc-100">
+                        <Link
+                          href={`/usuarios/${profile.id}`}
+                          className="font-medium text-zinc-100 transition hover:text-[#45B8E8]"
+                        >
                           {profile.full_name}
-                        </p>
+                        </Link>
 
                         {profile.display_username && (
                           <p className="mt-1 text-xs text-zinc-600">
@@ -207,7 +222,7 @@ export default async function UsersPage({
                               : "border-zinc-800 bg-zinc-900 text-zinc-500"
                           }`}
                         >
-                          {active ? "Activo" : "Inactivo"}
+                          {active ? "Activo" : "Dado de baja"}
                         </span>
                       </div>
 
@@ -226,6 +241,7 @@ export default async function UsersPage({
                       </div>
 
                     </div>
+                    </Fragment>
                   );
                 })}
               </div>

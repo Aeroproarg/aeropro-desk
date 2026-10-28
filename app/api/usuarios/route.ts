@@ -150,61 +150,30 @@ export async function POST(request: Request) {
 
     const newUserId = createdUserData.user.id;
 
-    // 6. Creamos el perfil interno
-    const { error: profileError } = await admin
-      .from("profiles")
-      .insert({
-        id: newUserId,
-        full_name: fullName.trim(),
-        status: "ACTIVE",
-        usual_specialty:
-          usualSpecialty?.trim() || null,
-        availability:
-          availability || "AVAILABLE",
-      });
+    // 6. Perfil y roles con la sesión de quien crea el usuario: así Actividad lo registra a su nombre.
+    //    La base valida permisos y roles. Si falla, se elimina la cuenta recién creada.
+    const { error: profileError } = await supabase.rpc("admin_save_user_profile", {
+      p_user_id: newUserId,
+      p_full_name: fullName.trim(),
+      p_usual_specialty: usualSpecialty?.trim() || null,
+      p_availability: availability || "AVAILABLE",
+      p_roles: roles,
+      p_status: "ACTIVE",
+    });
 
     if (profileError) {
       await admin.auth.admin.deleteUser(newUserId);
 
       return NextResponse.json(
-        { error: "No se pudo crear el perfil del usuario." },
+        { error: profileError.message || "No se pudo crear el perfil del usuario." },
         { status: 500 }
       );
     }
 
-    // 7. Buscamos los IDs de los roles seleccionados
-    const { data: roleRows, error: roleError } = await admin
-      .from("roles")
-      .select("id, name")
-      .in("name", roles);
-
-    if (roleError || !roleRows) {
-      await admin.auth.admin.deleteUser(newUserId);
-
-      return NextResponse.json(
-        { error: "No se pudieron asignar los roles." },
-        { status: 500 }
-      );
-    }
-
-    // 8. Vinculamos usuario ↔ roles
-    const userRoleRows = roleRows.map((role) => ({
-      user_id: newUserId,
-      role_id: role.id,
-    }));
-
-    const { error: userRolesError } = await admin
-      .from("user_roles")
-      .insert(userRoleRows);
-
-    if (userRolesError) {
-      await admin.auth.admin.deleteUser(newUserId);
-
-      return NextResponse.json(
-        { error: "No se pudieron guardar los roles." },
-        { status: 500 }
-      );
-    }
+    await supabase.rpc("log_user_account_change", {
+      p_user_id: newUserId,
+      p_description: `creó la cuenta de acceso (${email.trim().toLowerCase()})`,
+    });
 
     return NextResponse.json({
       success: true,
