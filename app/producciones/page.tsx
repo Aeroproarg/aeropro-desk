@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
@@ -14,11 +15,29 @@ import {
   Search,
   Users,
   Video,
+  X,
 } from "lucide-react";
 
 type ProductionItem = any;
 
-export default async function ProductionsPage() {
+// Sin tildes ni mayúsculas: "Botanía" encuentra "botania".
+function normalizeSearch(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+export default async function ProductionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[] }>;
+}) {
+  const rawQuery = (await searchParams).q;
+  const query = (Array.isArray(rawQuery) ? rawQuery[0] ?? "" : rawQuery ?? "").trim().slice(0, 100);
+  const normalizedQuery = normalizeSearch(query);
+
   const supabase = await createClient();
 
   const {
@@ -432,6 +451,30 @@ export default async function ProductionsPage() {
       )
       .slice(0, 8);
 
+  /*
+   * Búsqueda: incluye todas las producciones, sin importar estado ni fecha.
+   */
+
+  const searchResults =
+    normalizedQuery
+      ? allProductions
+          .filter((production) =>
+            [
+              production.name,
+              production.location,
+              production.description,
+              production.responsible?.full_name,
+            ].some((field) =>
+              normalizeSearch(field).includes(normalizedQuery)
+            )
+          )
+          .sort(
+            (a, b) =>
+              (b.start_at ? new Date(b.start_at).getTime() : 0) -
+              (a.start_at ? new Date(a.start_at).getTime() : 0)
+          )
+      : [];
+
   const now =
     new Date();
 
@@ -502,13 +545,35 @@ export default async function ProductionsPage() {
 
           <div className="flex flex-wrap items-center gap-3">
 
-            <div className="flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-[#0B0F12] px-3 text-sm text-zinc-500">
+            <Form
+              action="/producciones"
+              className="flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-[#0B0F12] px-3 text-sm text-zinc-500 focus-within:border-[#20A4DD]/50"
+            >
               <Search
                 size={17}
               />
 
-              Buscar producción...
-            </div>
+              <input
+                type="search"
+                name="q"
+                defaultValue={query}
+                placeholder="Buscar producción..."
+                aria-label="Buscar producción por nombre, lugar o responsable"
+                className="w-56 bg-transparent text-white placeholder:text-zinc-500 focus:outline-none"
+              />
+
+              {query && (
+                <Link
+                  href="/producciones"
+                  aria-label="Limpiar búsqueda"
+                  className="text-zinc-500 transition hover:text-white"
+                >
+                  <X
+                    size={16}
+                  />
+                </Link>
+              )}
+            </Form>
 
             <Link
               href="/producciones/nueva"
@@ -604,6 +669,49 @@ export default async function ProductionsPage() {
             No se pudieron cargar las producciones.
           </div>
         )}
+
+        {/* =====================================
+            RESULTADOS DE BÚSQUEDA
+        ===================================== */}
+
+        {query ? (
+          <ProductionSection
+            title={`Resultados para “${query}”`}
+            description="Todas las producciones que coinciden, sin importar estado ni fecha. Las más recientes primero."
+            count={
+              searchResults.length
+            }
+            icon={
+              <Search
+                size={18}
+              />
+            }
+          >
+
+            <ProductionList
+              productions={
+                searchResults
+              }
+              jobsByProduction={
+                jobsByProduction
+              }
+              participantsByProduction={
+                participantsByProduction
+              }
+              checklistByProduction={
+                checklistByProduction
+              }
+              downloadsByProduction={
+                downloadsByProduction
+              }
+              backupsByProduction={
+                backupsByProduction
+              }
+            />
+
+          </ProductionSection>
+        ) : (
+        <>
 
         {/* =====================================
             PRÓXIMAS PRODUCCIONES
@@ -765,6 +873,9 @@ export default async function ProductionsPage() {
           />
 
         </ProductionSection>
+
+        </>
+        )}
 
       </div>
     </main>
